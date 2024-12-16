@@ -142,10 +142,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Acknowledgments**: Special thanks to collaborating institutions and funding bodies that supported this work.
 
 ---
-
-## References
-
-1. MacEachern et al. (2021). "Machine Learning Applications in Healthcare."
-2. Ahmed et al. (2020). "Artificial Intelligence in Medicine: A Comprehensive Review."
-3. Milton Gama et al. (2021). "XAI in Healthcare Data Analysis."
-
