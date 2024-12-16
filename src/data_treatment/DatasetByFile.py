@@ -14,9 +14,11 @@ class DatasetByFile(Dataset):
         if file_extension in [".xls",".xlsx"]:
             df = pd.read_excel(file_path, header=header)
         elif file_extension == ".csv":
-              df = pd.read_csv(file_path,delimiter= delimiter, header=header)
+            df = pd.read_csv(file_path,delimiter= delimiter, header=header)
         elif file_extension == ".txt":
-             df = pd.read_csv(file_path, sep=delimiter, header=header)
+            df = pd.read_csv(file_path, sep=delimiter, header=header)
+        elif file_extension in [".odf", ".ods", ".odt"]:
+            df = pd.read_excel(file_path, header=header,engine="odf")
         else:
             raise TypeError("Not support to this extesion")
 
