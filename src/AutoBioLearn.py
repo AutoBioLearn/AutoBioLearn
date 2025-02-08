@@ -21,31 +21,31 @@ class AutoBioLearn(ABC):
             'train_size': 70
         }  
 
-    def get_dataset(self, data_processor: DataProcessor):
+    def load_dataset(self, data_processor: DataProcessor):
         if not hasattr(self, 'data_processor'):
             self.data_processor = data_processor  
     
-    def get_dataset_by_file(self, file_path: str,target: str,delimiter: str = None, header_size:int=1):
+    def load_dataset_by_file(self, file_path: str,target: str,delimiter: str = None, header_size:int=1):
         dataset= DatasetByFile(file_path=file_path,target=target,delimiter=delimiter, header_size= header_size)
         data_processor = DataProcessor(dataset)
-        self.get_dataset(data_processor)
+        self.load_dataset(data_processor)
             
-    def get_dataset_by_web(self, url: str,target: str, header_size:int=1):
+    def load_dataset_by_web(self, url: str,target: str, header_size:int=1):
         dataset= DatasetByWeb(url= url,target=target, header_size= header_size)
         data_processor = DataProcessor(dataset)
-        self.get_dataset(data_processor)  
+        self.load_dataset(data_processor)  
 
     @requires_dataset
-    def generate_data_report(self, path_to_save_report=None):        
-        self.data_processor.dataset.generate_data_report(path_to_save_report=path_to_save_report)
+    def perform_eda(self, path_to_save_report=None):        
+        self.data_processor.dataset.perform_eda(path_to_save_report=path_to_save_report)
 
     @requires_dataset
-    def generate_data_heatmap(self, show_values = False, remove_repetead_value = False,fig_size= (0,0), section:str=None):
-        self.data_processor.dataset.generate_data_heatmap(show_values=show_values,remove_repetead_value=remove_repetead_value,fig_size=fig_size,section=section)    
+    def plot_heatmap(self, show_values = False, remove_repetead_value = False,fig_size= (0,0), section:str=None):
+        self.data_processor.dataset.plot_heatmap(show_values=show_values,remove_repetead_value=remove_repetead_value,fig_size=fig_size,section=section)    
     
     @requires_dataset
-    def generate_data_pairplot(self, cols:list[str] = None, height=2.5,section:str = None):
-        self.data_processor.dataset.generate_data_pairplot(cols=cols, height= height,section=section)
+    def plot_pairplot(self, cols:list[str] = None, height=2.5,section:str = None):
+        self.data_processor.dataset.plot_pairplot(cols=cols, height= height,section=section)
 
     @requires_dataset
     def encode_categorical(self, cols:list[str] = [], parallel: bool = False):
@@ -218,7 +218,7 @@ class AutoBioLearn(ABC):
             #axes.get_figure().show()
             plt.show()  
 
-    def generate_shap_analysis(self,**kwargs):
+    def perform_shap_analysis(self,**kwargs):
         """
         kwargs use a list to filter by key models to analisys, where each key receives a list of values that will be filtered 
         kwargs params: time, validation, model_name, fold.
@@ -367,7 +367,7 @@ class AutoBioLearn(ABC):
     @requires_dataset
     @deprecated("Method will be deprecated, consider using generate_data_report")
     def data_analysis(self, path_to_save_report=None):
-        self.data_processor.dataset.generate_data_report(path_to_save_report=path_to_save_report)
+        self.data_processor.dataset.perform_eda(path_to_save_report=path_to_save_report)
 
     @requires_dataset
     @deprecated("Method will be deprecated, consider using encode_categorical")
@@ -391,9 +391,9 @@ class AutoBioLearn(ABC):
     def convert_datetime_to_numerical(self, cols:list[str] = [], cols_levels= 0):
         self.data_processor.encode_datetime(cols, cols_levels= cols_levels)    
 
-    @deprecated("Method will be deprecated, consider using generate_shap_analysis")  
-    def run_xai_analysis(self,**kwargs):
-        self.generate_shap_analysis(**kwargs)
+    @deprecated("Method will be deprecated, consider using perform_shap_analysis")  
+    def perform_xai_analysis(self,**kwargs):
+        self.perform_shap_analysis(**kwargs)
 
     @apply_per_grouping
     @deprecated("Method will be deprecated, consider using plot_shap_analysis")        

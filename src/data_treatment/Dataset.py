@@ -49,7 +49,7 @@ class Dataset:
 
             #endregion
                 
-    def generate_data_report(self,path_to_save_report=None):
+    def perform_eda(self,path_to_save_report=None):
         profile = ProfileReport(self._data, title="Data Analysis")
         report = profile.to_html()   
         
@@ -274,7 +274,7 @@ class Dataset:
                 self._sections_name.append(col)
 
     
-    def generate_data_heatmap(self, show_values = False, remove_repetead_value = False, fig_size= (0,0), section:str=None):
+    def plot_heatmap(self, show_values = False, remove_repetead_value = False, fig_size= (0,0), section:str=None):
         if remove_repetead_value:
             self.__generate_data_heatmap_custom(show_values=show_values,fig_size=fig_size,section=section)
         else:
@@ -298,7 +298,7 @@ class Dataset:
                 annot=show_values, fmt=".2f", linewidths=0.5,
                 vmin=-1, vmax=1)
       
-    def generate_data_pairplot(self, cols:list[str] = None, height=2.5,section:str = None):
+    def plot_pairplot(self, cols:list[str] = None, height=2.5,section:str = None):
         
         if section is not None:
             df = self._sections[section]
