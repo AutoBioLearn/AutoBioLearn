@@ -229,7 +229,7 @@ class AutoBioLearn(ABC):
         for key, value in kwargs.items():
             models_explained = filter(lambda x: x[key] in value, models_explained)      
         
-        self.__SHAP_analisys = []
+        self.__SHAP_analysis = []
 
         x : pd.DataFrame = None
         if not self.data_processor.dataset.get_has_many_header():
@@ -278,7 +278,7 @@ class AutoBioLearn(ABC):
             for future in as_completed(future_to_model):               
                 try:                   
                     shap_model_analisys = future.result()
-                    self.__SHAP_analisys.append(shap_model_analisys)
+                    self.__SHAP_analysis.append(shap_model_analisys)
                 except Exception as e:
                    print(e)
                    pass                  
@@ -292,7 +292,7 @@ class AutoBioLearn(ABC):
         Eg.: fold = [1,2,3]
         """       
 
-        models_explained = self.__SHAP_analisys.copy()
+        models_explained = self.__SHAP_analysis.copy()
 
         kwargs_filtered_models = {key: value for  key, value in kwargs.items() if key not in "graph_params"}
 
@@ -335,7 +335,7 @@ class AutoBioLearn(ABC):
         Eg.: fold = [1,2,3]
         """       
 
-        models_explained = self.__SHAP_analisys.copy()
+        models_explained = self.__SHAP_analysis.copy()
 
         kwargs_filtered_models = {key: value for  key, value in kwargs.items() if key not in "graph_params"}
 
