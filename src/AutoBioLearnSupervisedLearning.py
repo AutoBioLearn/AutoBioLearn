@@ -34,14 +34,19 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
         return
 
     def _add_model_executed(self ,time: int,validation: str, fold: int,                                                         
-                            model_name: str, model,y_pred, y_test, x_test_index, section= None):
+                            model_name: str, model,y_pred, y_prob, y_test, x_test_index, section= None):
         
         instance = {"time":time,
                     "validation":validation,
                     "fold":fold,                                                        
                     "model_name":model_name,
                     "model":model,
+<<<<<<< HEAD
                     "y_pred":y_pred,                  
+=======
+                    "y_pred":y_pred,
+                    'y_prob':y_prob,
+>>>>>>> 095e04f (Fixed ROC-AUC bug)
                     "y_test":y_test,
                     "x_test_index":x_test_index }
         
