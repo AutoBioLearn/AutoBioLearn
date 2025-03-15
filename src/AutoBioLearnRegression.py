@@ -109,12 +109,14 @@ class AutoBioLearnRegression(AutoBioLearnSupervisedLearning):
                                 model_instance.fit(x_train, y_train)                                 
 
                                 y_pred = model_instance.predict(x_test)
+                                y_prob = model_instance.predict_proba(x_test)[:, 1]
                                 
                                 instance = {"time":i,
                                             "validation":validation,
                                             "fold":fold,
                                             "model":model_instance,
                                             "y_pred":y_pred,
+                                            'y_prob':y_prob,
                                             "y_test":y_test,
                                             "x_test_index":test_index }
         
@@ -131,7 +133,7 @@ class AutoBioLearnRegression(AutoBioLearnSupervisedLearning):
                 try:
                     models_executed = future.result()
                     for model in models_executed:
-                        self._add_model_executed(model["time"],model["validation"], model["fold"], model_name,model["model"],model["y_pred"], model["y_test"],model["x_test_index"], section)
+                        self._add_model_executed(model["time"],model["validation"], model["fold"], model_name,model["model"],model["y_pred"], model['y_prob'], model["y_test"],model["x_test_index"], section)
                 except Exception as ex:
                    print(ex)
                    
