@@ -3,12 +3,12 @@ from typing_extensions import deprecated
 import pandas as pd
 from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, root_mean_squared_error, r2_score, median_absolute_error
 from sklearn.model_selection import GridSearchCV, ParameterGrid, RandomizedSearchCV
-from AutoBioLearn import AutoBioLearn
+from AutoBioLearnSupervisedLearning import AutoBioLearnSupervisedLearning
 from decorators import apply_per_grouping, requires_dataset
 from helpers import ModelHelper
 
 
-class AutoBioLearnRegression(AutoBioLearn):
+class AutoBioLearnRegression(AutoBioLearnSupervisedLearning):
  
     @deprecated("Method will be deprecated, consider using execute_models")
     def run_models(self, models:list[str]=["xgboost"],  times_repeats:int=10, params={}, section:str=None):

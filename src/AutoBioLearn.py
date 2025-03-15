@@ -12,14 +12,7 @@ from helpers import XAIHelper, ModelHelper
 class AutoBioLearn(ABC):
 
     def __init__(self) -> None:
-        self._models_executed = []
-        self._validations_execution = {}
-        validation_object =self._get_validation("split")
-        self._validations_execution["split"] = {
-            'validation': validation_object,
-            'num_folds': 0,
-            'train_size': 70
-        }  
+        self._models_executed = []      
 
     def load_dataset(self, data_processor: DataProcessor):
         if not hasattr(self, 'data_processor'):
@@ -112,80 +105,15 @@ class AutoBioLearn(ABC):
 
     @requires_dataset    
     def impute_cols_na(self,method="knn", section: str=None):       
-        self.data_processor.dataset.impute_cols_na(method=method, section= section)
-
-    def set_validations(self, validations:list[str]=["split"], params ={}):
-        self._validations_execution= {}     
-
-        unique_validations = set(validations)
-
-        for validation in unique_validations:
-            validation_object = self._get_validation(validation)
-            validation_params = ModelHelper.get_model_params(validation,params)
-            self._validations_execution[validation] =  { 'validation': validation_object, 'num_folds': validation_params["num_folds"],'train_size':validation_params["train_size"]}
-    
-    @abstractmethod
-    def _get_validation(self,validation: str):
-        return
+        self.data_processor.dataset.impute_cols_na(method=method, section= section)   
 
     @abstractmethod
     def execute_models(self, models:list[str]=["xgboost"],  times_repeats:int=10, params={}, section:str=None):
-        return
-      
-    def _add_model_executed(self ,time: int,validation: str, fold: int,                                                         
-                            model_name: str, model,y_pred, y_test, x_test_index, section= None):
-        
-        instance = {"time":time,
-                    "validation":validation,
-                    "fold":fold,                                                        
-                    "model_name":model_name,
-                    "model":model,
-                    "y_pred":y_pred,
-                    "y_test":y_test,
-                    "x_test_index":x_test_index }
-        
-        if section:
-           instance["section"] = section 
+        return   
 
-        self._models_executed.append(instance)
-
-
-    def _find_best_hyperparams(self, clf_model,
-                            X,
-                            y,
-                            param_grid,
-                            param_sel_obj,
-                            num_folds,
-                            metric
-                          ):  
-
-    # Grid search optimal parameters
-        clf_grid = param_sel_obj(clf_model,
-                                  param_grid,                                  
-                                  cv=num_folds,
-                                  scoring = metric
-                                  )
-
-    # training model
-        clf_grid.fit(X, y)
-        return clf_grid.best_params_
-
+    @abstractmethod
     def evaluate_models(self, metrics:list[str]=[], section: str = None)-> dict:
-        if not hasattr(self, '_metrics'):
-            self._calculate_metrics()
-
-        all_list = {}
-
-        section_metrics = self._metrics
-
-        if section is not None and self.data_processor.dataset.get_has_many_header():
-            section_metrics = self._metrics[self._metrics["Section"] == section]
-
-        for metric in metrics:
-            all_list[metric] = section_metrics[["Model",metric ]].groupby('Model').describe()      
-        
-        all_list["complete"] = section_metrics[["Model","Validation","Time_of_execution","Fold"]+ metrics]
-        return all_list
+        return
     
     @abstractmethod
     def _calculate_metrics(self):
@@ -229,7 +157,7 @@ class AutoBioLearn(ABC):
         for key, value in kwargs.items():
             models_explained = filter(lambda x: x[key] in value, models_explained)      
         
-        self.__SHAP_analysis = []
+        self.__SHAP_analisys = []
 
         x : pd.DataFrame = None
         if not self.data_processor.dataset.get_has_many_header():
@@ -278,7 +206,7 @@ class AutoBioLearn(ABC):
             for future in as_completed(future_to_model):               
                 try:                   
                     shap_model_analisys = future.result()
-                    self.__SHAP_analysis.append(shap_model_analisys)
+                    self.__SHAP_analisys.append(shap_model_analisys)
                 except Exception as e:
                    print(e)
                    pass                  
@@ -292,7 +220,7 @@ class AutoBioLearn(ABC):
         Eg.: fold = [1,2,3]
         """       
 
-        models_explained = self.__SHAP_analysis.copy()
+        models_explained = self.__SHAP_analisys.copy()
 
         kwargs_filtered_models = {key: value for  key, value in kwargs.items() if key not in "graph_params"}
 
@@ -335,7 +263,7 @@ class AutoBioLearn(ABC):
         Eg.: fold = [1,2,3]
         """       
 
-        models_explained = self.__SHAP_analysis.copy()
+        models_explained = self.__SHAP_analisys.copy()
 
         kwargs_filtered_models = {key: value for  key, value in kwargs.items() if key not in "graph_params"}
 
