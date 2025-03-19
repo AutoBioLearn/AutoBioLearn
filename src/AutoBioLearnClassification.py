@@ -157,14 +157,15 @@ class AutoBioLearnClassification(AutoBioLearn):
         metrics = []
         for row in self._models_executed:
             y_test = row["y_test"]
-            y_pred = row["y_pred"]
+            y_pred = row["y_pred"]           
+
             if "section" in row:
                 metrics.append((row["model_name"], row["section"], row["validation"],row["time"], row["fold"],\
                                                         precision_score(y_true= y_test,y_pred= y_pred), \
                                                         accuracy_score(y_true= y_test,y_pred= y_pred), \
                                                         recall_score(y_true= y_test,y_pred= y_pred), \
                                                         f1_score(y_true= y_test,y_pred= y_pred), \
-                                                        roc_auc_score(y_true= y_test,y_score= y_pred)))
+                                                        self.__calculate_roc_auc_score(y_true= y_test, model= row["model"],test_index= row["x_test_index"], section= row["section"])))
                
             else:
                 metrics.append((row["model_name"], row["validation"],row["time"], row["fold"],\
@@ -172,7 +173,7 @@ class AutoBioLearnClassification(AutoBioLearn):
                                                         accuracy_score(y_true= y_test,y_pred= y_pred), \
                                                         recall_score(y_true= y_test,y_pred= y_pred), \
                                                         f1_score(y_true= y_test,y_pred= y_pred), \
-                                                        roc_auc_score(y_true= y_test,y_score= y_pred)))
+                                                        self.__calculate_roc_auc_score(y_true= y_test, model= row["model"],test_index= row["x_test_index"])))
         
         if self.data_processor.dataset.get_has_many_header():
             cols_names = ["Model", "Section",
@@ -190,6 +191,20 @@ class AutoBioLearnClassification(AutoBioLearn):
                         "Recall","F1","ROC-AUC"]
       
         self._metrics = pd.DataFrame(data = metrics, columns=cols_names)
+
+    def __calculate_roc_auc_score(self,y_true, model, test_index ,multi_class='ovr', average='macro', section:str = None):            
+        X = self.data_processor.dataset.get_X(section)
+        X_test = X.iloc[test_index]
+        y_scores = model.predict_proba(X_test)
+        n_classes = y_scores.shape[1] 
+        try:
+            if n_classes <= 2:                
+                return roc_auc_score(y_true, y_scores[:, 1])
+            else:               
+                return roc_auc_score(y_true, y_scores, multi_class=multi_class, average=average)
+        except ValueError as e:
+            print(f"Erro ao calcular ROC AUC: {e}")
+            return None
         
     @apply_per_grouping  
     def plot_metrics(self, metrics:list[str]=["Recall","Precision","Accuracy","F1","ROC-AUC"],rot=90, figsize=(12,6), fontsize=20,section: str = None):

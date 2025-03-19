@@ -8,3 +8,4 @@ shap==0.42.1
 imbalanced-learn==0.12.4
 ipywidgets==8.1.2
 ipykernel==6.29.5
+odfpy==1.4.1
