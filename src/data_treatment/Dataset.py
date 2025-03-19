@@ -1,3 +1,4 @@
+import math
 from matplotlib import pyplot as plt
 import pandas as pd
 from pandas import DataFrame
@@ -132,36 +133,69 @@ class Dataset:
         else:
             self._sections[section] = self.__drop_na(self._sections[section], axis,percent,show_dropped)
 
-    def remove_outliers(self, method_remove= "limit_method", use_original_data= False):
+    def remove_outliers(self, method_remove= "limit_method",cols:list[str] = [], use_original_data= False, section: str =None):
         if method_remove is None:
             raise AttributeError("method_remove is not null")
         
         if use_original_data:
             self._data = self.__original_data
-       
-        for col in self.__cols_outliers:
+
+        if section == None:
+            df = self._data
+        else:
+            df = self._sections[section]
+
+        for col in cols:
 
             if method_remove == "limit_method":
 
-                min_limit,max_limit =DatasetHelper.find_outliers_limit_IQR(self._data[col])
+                min_limit,max_limit =DatasetHelper.find_outliers_limit_IQR(df[col])
                 
                 #add +1 for remove all outliers, because if have a a big difference between limits and values outliers, still go have new outliers 
-                percentile_min = (stats.percentileofscore(self._data[col], min_limit)+1)/100
-                percentile_max = (100-stats.percentileofscore(self._data[col], max_limit)+1)/100
-                self._data[col] = winsorize(self._data[col], limits=[percentile_min, percentile_max])
+                percentile_min = (stats.percentileofscore(df[col], min_limit)+1)/100
+                percentile_max = (100-stats.percentileofscore(df[col], max_limit)+1)/100
+                df[col] = winsorize(df[col], limits=[percentile_min, percentile_max])
 
             elif method_remove == 'log_transformation':
 
-                self._data[col] = np.log(self._data[col])
+                df[col] = np.log(df[col])
 
             elif method_remove == 'mean_value':
 
-                mean = np.mean(self._data[col])
-                df_aux= DatasetHelper.find_outliers_IQR(self._data[col]).dropna(axis=0,how='all')
-                self._data.loc[self._data[col].isin(df_aux),col] = mean
+                mean = np.mean(df[col])
+                df_aux= DatasetHelper.find_outliers_IQR(df[col]).dropna(axis=0,how='all')
+                df.loc[df[col].isin(df_aux),col] = mean
             else:
                 raise AttributeError("method_remove not exists")
-   
+
+        if section == None:
+            self._data =  df
+        else:
+            self._sections[section] = df   
+        
+    
+    def plot_outliers(self, cols_per_row=3,section:str=None):   
+        if not self._has_many_header or not bool(self._sections):
+            df = self._data
+        else:           
+            df = self._sections[section]  
+        
+        numeric_cols = df.select_dtypes(include='number').columns
+        num_vars = len(numeric_cols)
+        rows = math.ceil(num_vars / cols_per_row)
+        
+        fig, axes = plt.subplots(rows, cols_per_row, figsize=(cols_per_row * 5, rows * 4))
+        axes = axes.flatten()
+        
+        for i, col in enumerate(numeric_cols):
+            sns.boxplot(data=df, y=col, ax=axes[i])
+            axes[i].set_title(f'Boxplot: {col}')
+            
+        for j in range(i+1, len(axes)):
+            fig.delaxes(axes[j])
+        
+        plt.tight_layout()
+        plt.show()
 
     def clean_data(self,cols_to_drop:list[str] = [],cols_date:list[str] = [], try_convert_values= False, use_original_data= False):
         if use_original_data:

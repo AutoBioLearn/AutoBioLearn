@@ -102,7 +102,15 @@ class AutoBioLearn(ABC):
 
     @requires_dataset    
     def impute_cols_na(self,method="knn", section: str=None):       
-        self.data_processor.dataset.impute_cols_na(method=method, section= section)   
+        self.data_processor.dataset.impute_cols_na(method=method, section= section)  
+
+    @requires_dataset  
+    def plot_outliers(self, cols_per_row=3,section: str=None):
+        self.data_processor.dataset.plot_outliers(cols_per_row= cols_per_row,section=section)
+
+    @requires_dataset  
+    def remove_outliers(self, method_remove= "limit_method",cols:list[str] = [] ,section: str=None):
+        self.data_processor.dataset.remove_outliers(method_remove=method_remove, cols=cols,section=section)
 
     @abstractmethod
     def execute_models(self, models:list[str]=["xgboost"],  times_repeats:int=10, params={}, section:str=None):
