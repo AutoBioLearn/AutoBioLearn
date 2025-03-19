@@ -117,15 +117,13 @@ class AutoBioLearnClassification(AutoBioLearnSupervisedLearning):
                                 model_instance.set_params(**merged_params)
                                 model_instance.fit(x_train, y_train)                                 
 
-                                y_pred = model_instance.predict(x_test)
-                                y_prob = model_instance.predict_proba(x_test)[:, 1]
+                                y_pred = model_instance.predict(x_test)                              
                                 
                                 instance = {"time":i,
                                             "validation":validation,
                                             "fold":fold,
                                             "model":model_instance,
-                                            "y_pred":y_pred,
-                                            "y_prob":y_prob,
+                                            "y_pred":y_pred,                                          
                                             "y_test":y_test,
                                             "x_test_index":test_index }
         
@@ -142,7 +140,7 @@ class AutoBioLearnClassification(AutoBioLearnSupervisedLearning):
                 try:
                     models_executed = future.result()
                     for model in models_executed:
-                        self._add_model_executed(model["time"],model["validation"], model["fold"], model_name,model["model"],model["y_pred"], model['y_prob'], model["y_test"],model["x_test_index"], section)
+                        self._add_model_executed(model["time"],model["validation"], model["fold"], model_name,model["model"],model["y_pred"], model["y_test"],model["x_test_index"], section)
                 except Exception as ex:
                    print(ex)
                                    
@@ -159,8 +157,7 @@ class AutoBioLearnClassification(AutoBioLearnSupervisedLearning):
         metrics = []
         for row in self._models_executed:
             y_test = row["y_test"]
-            y_pred = row["y_pred"]
-            y_prob = row["y_prob"]
+            y_pred = row["y_pred"]           
 
             if "section" in row:
                 metrics.append((row["model_name"], row["section"], row["validation"],row["time"], row["fold"],\
@@ -168,7 +165,7 @@ class AutoBioLearnClassification(AutoBioLearnSupervisedLearning):
                                                         accuracy_score(y_true= y_test,y_pred= y_pred), \
                                                         recall_score(y_true= y_test,y_pred= y_pred), \
                                                         f1_score(y_true= y_test,y_pred= y_pred), \
-                                                        roc_auc_score(y_true= y_test,y_score= y_prob)))
+                                                        self.__calculate_roc_auc_score(y_true= y_test, model= row["model"],test_index= row["x_test_index"], section= row["section"])))
                
             else:
                 metrics.append((row["model_name"], row["validation"],row["time"], row["fold"],\
@@ -176,7 +173,7 @@ class AutoBioLearnClassification(AutoBioLearnSupervisedLearning):
                                                         accuracy_score(y_true= y_test,y_pred= y_pred), \
                                                         recall_score(y_true= y_test,y_pred= y_pred), \
                                                         f1_score(y_true= y_test,y_pred= y_pred), \
-                                                        roc_auc_score(y_true= y_test,y_score= y_prob)))
+                                                        self.__calculate_roc_auc_score(y_true= y_test, model= row["model"],test_index= row["x_test_index"])))
         
         if self.data_processor.dataset.get_has_many_header():
             cols_names = ["Model", "Section",
@@ -194,7 +191,38 @@ class AutoBioLearnClassification(AutoBioLearnSupervisedLearning):
                         "Recall","F1","ROC-AUC"]
       
         self._metrics = pd.DataFrame(data = metrics, columns=cols_names)
+
+    def __calculate_roc_auc_score(self,y_true, model, test_index ,multi_class='ovr', average='macro', section:str = None):
+        """
+        Calcula o ROC AUC Score para classificação binária ou multiclasse.
         
+        Parâmetros:
+        - y_true: array com os rótulos reais.
+        - y_scores: array com os scores/probabilidades preditos (shape: [n amostras, n_classes]).
+        - multi_class: 'ovr' ou 'ovo' (para multiclasse).
+        - average: média usada no caso multiclasse ('macro', 'weighted', etc.).
+        
+        Retorna:
+        - roc_auc: valor do ROC AUC.
+        """
+    
+        X = self.data_processor.dataset.get_X(section)
+        X_test = X.iloc[test_index]
+        y_scores = model.predict_proba(X_test)
+        n_classes = y_scores.shape[1] 
+
+        try:
+            if n_classes <= 2:
+                # Caso binário com saída de score 1D (classe positiva)
+                return roc_auc_score(y_true, y_scores[:, 1])
+            else:
+                # Caso multiclasse com probabilidades para cada classe
+                return roc_auc_score(y_true, y_scores, multi_class=multi_class, average=average)
+        except ValueError as e:
+            print(f"Erro ao calcular ROC AUC: {e}")
+            return None
+
+
     @apply_per_grouping  
     def plot_metrics(self, metrics:list[str]=["Recall","Precision","Accuracy","F1","ROC-AUC"],rot=90, figsize=(12,6), fontsize=20,section: str = None):
        return super().plot_metrics(metrics = metrics,rot= rot,figsize= figsize, fontsize= fontsize, section= section)
