@@ -89,6 +89,10 @@ class AutoBioLearn(ABC):
     def drop_section(self, sections: list[str]):      
         self.data_processor.dataset.drop_section(sections)
 
+    @requires_dataset    
+    def standardize(self, sections: list[str]):      
+        self.data_processor.dataset.drop_section(sections)
+
     @requires_dataset
     def encode_datetime(self, cols:list[str] = [], cols_levels= 0, parallel: bool = False):
         def process_column(col):               

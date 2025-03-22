@@ -42,4 +42,8 @@ class DataProcessor:
 
     @requires_dataset
     def plot_rows_na(self, value="percent", section: str=None):
-        self.dataset.plot_na(axis=ContentHelper.const_axis_row(),value= value , section= section)
+        self.dataset.plot_na(axis=ContentHelper.const_axis_row(),value= value , section= section)        
+
+    @requires_dataset
+    def standardize(self, section: str=None):
+        self.dataset.standardize(section= section)

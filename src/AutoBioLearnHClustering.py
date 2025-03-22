@@ -2,13 +2,19 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
 import scipy.cluster.hierarchy as sch
+import scipy
 from AutoBioLearnUnsupervisedLearning import AutoBioLearnUnsupervisedLearning
+from decorators import requires_dataset
 
 class AutoBioLearnHClustering(AutoBioLearnUnsupervisedLearning):
     
+    def __init__(self) -> None:
+        super().__init__()
+            
+    @requires_dataset
     def heatmap(self,
-                method:str='',
-                metric:str='',
+                method:str='average',
+                metric:str='euclidean',
                 cmap:str='plasma_r',
                 section:str=None,
                 save:bool=True):
@@ -50,7 +56,7 @@ class AutoBioLearnHClustering(AutoBioLearnUnsupervisedLearning):
         
         # Add legend to class
         handles = [mpatches.Patch(color=color, label=label) for label, color in colours.items()]
-        plt.legend(handles=handles, bbox_to_anchor=(1.2, 1), loc='upper left')
+        plt.legend(handles=handles, bbox_to_anchor=(1.2, 1), loc='lower left')
         
         # Save it
         if save == True:
@@ -59,9 +65,10 @@ class AutoBioLearnHClustering(AutoBioLearnUnsupervisedLearning):
         plt.show()
         plt.cla()
     
+    @requires_dataset
     def dendogram(self,
-                  method:str='',
-                  metric:str='',
+                  method:str='average',
+                  metric:str='euclidean',
                   thresh:int=3,
                   section:str=None,
                   save:bool=True):
@@ -98,3 +105,14 @@ class AutoBioLearnHClustering(AutoBioLearnUnsupervisedLearning):
         plt.show()
         plt.cla()
         
+
+    def execute_models(self):
+        print('Not really implemented yet')   
+
+
+    def evaluate_models(self):
+        print('Not really implemented yet')   
+
+
+    def _calculate_metrics(self):
+        print('Not really implemented yet')   

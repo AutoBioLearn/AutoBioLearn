@@ -7,6 +7,8 @@ from ydata_profiling import ProfileReport
 from scipy import stats
 from scipy.stats.mstats import winsorize
 
+from sklearn.preprocessing import StandardScaler
+
 import numpy as np
 
 from helpers.DatasetHelper import DatasetHelper
@@ -240,7 +242,22 @@ class Dataset:
                 ContentHelper.convert_cols_values(self._sections[section],cols_section)
         else:
             ContentHelper.convert_cols_values(self._data,cols)
-    
+
+
+    def standardize(self, section: str= None) -> pd.DataFrame:
+        scaler = StandardScaler() 
+        if not self._has_many_header or not bool(self._sections):
+            std_array = scaler.fit_transform(self._data)
+            self._data = pd.DataFrame(std_array,
+                                      index=self._data.index,
+                                      columns=self._data.columns)
+        else:
+            std_array = scaler.fit_transform(self._sections[section])
+            self._sections[section] = pd.DataFrame(std_array,
+                                                   index=self._sections[section].index,
+                                                   columns=self._sections[section].columns)
+
+
     def get_X(self, section: str= None)->DataFrame:
         if section is None and not self._has_many_header:
             numeric_cols = [cname for cname in self._data.columns if self._data[cname].dtype in self._typesToX()]
@@ -253,19 +270,22 @@ class Dataset:
             return X 
         else:
             return X.drop([self.__target],axis=1,inplace=False)
-    
-    def get_Y(self, section: str= None)->DataFrame:
-        if self._has_many_header:
-            return self._get_Y(self._sections[section],self.__target)
-        else:   
-            return self._get_Y(self._data,self.__target)
+
     
     def _get_Y(self, df,target)->DataFrame:
         if df[target].dtype not in self._typesToX():
             ContentHelper.convert_cols_values(df,[target])
             
         return df[target]
+
     
+    def get_Y(self, section: str= None)->DataFrame:
+        if self._has_many_header:
+            return self._get_Y(self._sections[section],self.__target)
+        else:   
+            return self._get_Y(self._data,self.__target)
+
+
     def __impute_cols_na(self, df ,method="knn", n_neighbors=5):
         if method == "knn":
             imputer = KNNImputer(n_neighbors=n_neighbors)            
