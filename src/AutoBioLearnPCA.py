@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
+from scipy.stats import bartlett
 import pandas as pd
 from AutoBioLearnUnsupervisedLearning import AutoBioLearnUnsupervisedLearning
 from decorators import requires_dataset
@@ -11,47 +12,62 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         super().__init__()
 
     @requires_dataset
-    def PCA(self,
-            n_components:int=2,
-            section:str=None,): # See if it is a class method or whatever
-        #TODO
+    def execute_models(self,
+                       n_components:int=2,
+                       section:str=None):
         # Get data
         df = self.data_processor.dataset
         
-        pca = PCA(n_components=n_components)
-        pca = pca.fit(df)  # Set as class attribute
-        coordinates = pca.transform(df)
-        coordinates = pd.DataFrame(coordinates,  # Set as class attribute
-                                   index=df.index,
-                                   columns=['PC1', 'PC2'])
+        self.pca = PCA(n_components=n_components)
+        self.pca = self.pca.fit_transform(df)
         
+        components_cols = [f'PC{i}' for i in range(1, n_components+1)]
+        self.coordinates = pd.DataFrame(self.pca,
+                                        index=df.index,
+                                        columns=components_cols)
+
     @requires_dataset
-    def bartlett():
+    def __kmo(self):
+        #TODO
+        pass
+
+    
+    @requires_dataset
+    def __bartlett(self):
+
+        df = self.data_processor.dataset
+        self.bartlett = bartlett(*[df[col] for col in df.columns])
+        
+    
+    @requires_dataset
+    def __eigenvalues(self):
+        #TODO
+        pass
+
+    @requires_dataset
+    def __variance(self):
         #TODO
         pass
     
     @requires_dataset
-    def eigenvalues():
-        #TODO
+    def _calculate_metrics(self):
+        pass
+    
+    def evaluate_models(self):
         pass
 
     @requires_dataset
-    def variance():
-        #TODO
-        pass
-
-    @requires_dataset
-    def loading_table():
+    def loading_table(self):
         #TODO
         pass
     
     @requires_dataset
-    def loading_plot():
+    def loading_plot(self):
         #TODO
         pass
 
     @requires_dataset
-    def variance_plot():
+    def variance_plot(self):
         #TODO
         pass
     
