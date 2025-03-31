@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
 import pandas as pd
+import numpy as np
 
 from factor_analyzer.factor_analyzer import calculate_kmo
 from factor_analyzer.factor_analyzer import calculate_bartlett_sphericity
@@ -19,10 +20,10 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
                        n_components:int=2,
                        section:str=None):
         # Get data
-        df = self.data_processor.dataset
+        df = self.data_processor.dataset.get_X(section)
         
         self.pca = PCA(n_components=n_components)
-        self.pca = self.pca.fit_transform(df)
+        self.scores = self.pca.fit_transform(df)
         
         components_cols = [f'PC{i}' for i in range(1, n_components+1)]
         self.coordinates = pd.DataFrame(self.pca,
@@ -31,29 +32,51 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
 
     @requires_dataset
     def __kmo(self):
-        _,kmo_model=calculate_kmo(self.data_processor.dataset)
+        _,kmo_model=calculate_kmo(self.data_processor.dataset.get_X())
         self.kmo = kmo_model
 
     
     @requires_dataset
     def __bartlett(self):
-        chi,p =calculate_bartlett_sphericity(self.data_processor.dataset)
+        chi,p =calculate_bartlett_sphericity(self.data_processor.dataset.get_X())
         self.bartlett = {'p-val':p, 'chi-squared':chi}
              
     
     @requires_dataset
-    def __eigenvalues(self):
-        #TODO
-        pass
+    def __kaiser(self, max_dim=10):
+        self.execute_models(n_components=max_dim)
+        
+        eigenvalues = self.pca.explained_variance_
+        self.kaiser = len(np.where(eigenvalues > 1)[0])
 
     @requires_dataset
-    def __variance(self):
+    def __variance_exp(self, max_dim, thresh):
+        self.execute_models(n_components=max_dim)
+        var_ratio = np.cumsum(self.pca.explained_variance_ratio_)
+        n = len(np.where(var_ratio < thresh)[0]) + 1
+        var = var_ratio[n]
+        self.var_explained = {'n_components': n, 'explained variance': var}
+        
+        fig, ax = plt.subplots()
+        sns.lineplot(var_ratio, ax=ax)
+        ax.set_xlabel('Number of Components')
+        ax.set_ylabel('Cumulative Explained Variance')
+        ax.hlines(y=thresh, color='r')
+        plt.show()
+
+
+    @requires_dataset
+    def __scree(self):
         #TODO
         pass
     
     @requires_dataset
     def _calculate_metrics(self):
-        pass
+        self.__kmo()
+        print(self.kmo)
+        
+        self.__bartlett()
+        print(self.bartlett)
     
     def evaluate_models(self):
                 
