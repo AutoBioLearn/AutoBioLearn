@@ -1,8 +1,11 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
-from scipy.stats import bartlett
 import pandas as pd
+
+from factor_analyzer.factor_analyzer import calculate_kmo
+from factor_analyzer.factor_analyzer import calculate_bartlett_sphericity
+
 from AutoBioLearnUnsupervisedLearning import AutoBioLearnUnsupervisedLearning
 from decorators import requires_dataset
 
@@ -28,16 +31,15 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
 
     @requires_dataset
     def __kmo(self):
-        #TODO
-        pass
+        _,kmo_model=calculate_kmo(self.data_processor.dataset)
+        self.kmo = kmo_model
 
     
     @requires_dataset
     def __bartlett(self):
-
-        df = self.data_processor.dataset
-        self.bartlett = bartlett(*[df[col] for col in df.columns])
-        
+        chi,p =calculate_bartlett_sphericity(self.data_processor.dataset)
+        self.bartlett = {'p-val':p, 'chi-squared':chi}
+             
     
     @requires_dataset
     def __eigenvalues(self):
@@ -54,6 +56,14 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         pass
     
     def evaluate_models(self):
+                
+        # print(f'Chi-squared: {chi}')
+        # print('P-value: {p}')
+        
+        # if p > 0.05:
+        #     print('P-value above 0.05, we advise not employ a PCA')
+        # else:
+        #     print('P-value below 0.05, you may employ a PCA')
         pass
 
     @requires_dataset
