@@ -257,6 +257,8 @@ class Dataset:
                                                    index=self._sections[section].index,
                                                    columns=self._sections[section].columns)
 
+    def get_target_name(self):
+        return self.__target
 
     def get_X(self, section: str= None)->DataFrame:
         if section is None and not self._has_many_header:

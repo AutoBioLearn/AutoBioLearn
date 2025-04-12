@@ -21,13 +21,14 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
                        section:str=None):
         # Get data
         df = self.data_processor.dataset.get_X(section)
+        #y = self.data_processor.dataset.get_Y(section)
         
         self.pca = PCA(n_components=n_components)
         self.scores = self.pca.fit_transform(df)
         
         components_cols = [f'PC{i}' for i in range(1, n_components+1)]
-        self.coordinates = pd.DataFrame(self.pca,
-                                        index=df.index,
+        self.coordinates = pd.DataFrame(self.scores,
+                                        index=df.index, # TODO colocar target
                                         columns=components_cols)
 
     @requires_dataset
@@ -112,14 +113,14 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         # Print statistics #TODO
         
         # PCA plot
-        PC1_var= self._pca.explained_variance_ratio_[0]
-        PC2_var= self._pca.explained_variance_ratio_[1]
+        PC1_var= self.pca.explained_variance_ratio_[0]
+        PC2_var= self.pca.explained_variance_ratio_[1]
         
         fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(7, 7), dpi = 600)
-        sns.scatterplot(data=self._coordinates,
+        sns.scatterplot(data=self.coordinates,
                         x='PC1',
                         y='PC2',
-                        hue=self.__target,
+                        #hue=self.data_processor.dataset.get_target_name(),
                         palette=cmap,
                         legend=False,
                         ax=axes)
