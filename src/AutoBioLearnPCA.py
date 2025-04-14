@@ -58,7 +58,7 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
              
     
     @requires_dataset
-    def __kaiser(self, max_dim=10):
+    def __kaiser(self):
         """
         The Kaiser criterion is a method for determining how many principal 
         components (PCs) to retain in a principal components analysis (PCA).
@@ -97,24 +97,50 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
 
     
     @requires_dataset
-    def _calculate_metrics(self):
+    def _calculate_metrics(self, section:str=None):
         self.__kmo()
-        print(self.kmo)
-        
         self.__bartlett()
-        print(self.bartlett)
-    
-    def evaluate_models(self):
-                
-        # print(f'Chi-squared: {chi}')
-        # print('P-value: {p}')
         
-        # if p > 0.05:
-        #     print('P-value above 0.05, we advise not employ a PCA')
-        # else:
-        #     print('P-value below 0.05, you may employ a PCA')
-        pass
+        self.execute_models(self, n_components=10, section=section)
+        self.__kaiser()
+        
+        self.cumulative_var(0.8)
+        self.scree()
+    
+    def evaluate_models(self, section:str=None):
+        
+        self._calculate_metrics(section=section)
+        
+        # Interpret Bartlett
+        print('BARTLETT SPHERICITY TEST')
+        print(f"Chi-squared: {self.bartlett['chi-squared']}")
+        print("P-value: {self.bartlett['p-val']}")
+        
+        if self.bartlett['p-val'] > 0.05:
+             print('P-value above 0.05, we advise not employ a PCA')
+        else:
+             print('P-value below 0.05, you may employ a PCA')
 
+        # Interpret KMO
+        print('KAISER-MEYER-OLKIN (KMO)')
+        print(f"KMO: {self.__kmo}")
+
+        if self.__kmo > 0.8:
+            print('KMO above 0.8, the sampling is adequate.')
+            print('You may employ PCA.')
+        elif self.__kmo > 0.5:
+            print('KMO between 0.5 and 0.8, the sampling is not ideal.')
+            print('But you may proceed with PCA.')
+        else:
+            print('KMO below 0.05, we advise not employ a PCA')
+        
+        # Interpret Kaiser
+        print('KAISER CRITERION')
+        print(f"Number of eigenvalues >1: {self.kaiser}")
+        print('Retraining model with {self.kaiser} components...')
+        self.execute_models(self, n_components=self.kaiser, section=section)
+
+    
     @requires_dataset
     def loading_table(self):
         #TODO
