@@ -151,10 +151,6 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         #TODO
         pass
 
-    @requires_dataset
-    def variance_plot(self):
-        #TODO
-        pass
     
     @requires_dataset
     def PCA_plot(self,
