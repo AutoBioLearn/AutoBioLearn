@@ -8,6 +8,7 @@ from scipy import stats
 from scipy.stats.mstats import winsorize
 
 from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
 
 import numpy as np
 
@@ -245,17 +246,22 @@ class Dataset:
 
 
     def standardize(self, section: str= None) -> pd.DataFrame:
-        scaler = StandardScaler() 
+
         if not self._has_many_header or not bool(self._sections):
-            std_array = scaler.fit_transform(self._data)
-            self._data = pd.DataFrame(std_array,
-                                      index=self._data.index,
-                                      columns=self._data.columns)
+            numeric = self._data.select_dtypes(include='number').columns
+            ct = ColumnTransformer(transformers=[('num',
+                                                  StandardScaler(),
+                                                  numeric)])
+            std_array = ct.fit_transform(self._data)
+            
+            self._data[numeric] = std_array
         else:
-            std_array = scaler.fit_transform(self._sections[section])
-            self._sections[section] = pd.DataFrame(std_array,
-                                                   index=self._sections[section].index,
-                                                   columns=self._sections[section].columns)
+            numeric = self._sections[section].select_dtypes(include='number').columns
+            ct = ColumnTransformer(transformers=[('num',
+                                                  StandardScaler(),
+                                                  numeric)])
+            std_array = ct.fit_transform(self._sections[section])
+            self._sections[section][numeric] = std_array
 
     def get_target_name(self):
         return self.__target
@@ -274,18 +280,19 @@ class Dataset:
             return X.drop([self.__target],axis=1,inplace=False)
 
     
-    def _get_Y(self, df,target)->DataFrame:
-        if df[target].dtype not in self._typesToX():
-            ContentHelper.convert_cols_values(df,[target])
+    def _get_Y(self, df, target, recode=True)->DataFrame:
+        if recode == True:
+            if df[target].dtype not in self._typesToX():
+                ContentHelper.convert_cols_values(df,[target])
             
         return df[target]
 
     
-    def get_Y(self, section: str= None)->DataFrame:
+    def get_Y(self, section: str= None, recode: bool= True)->DataFrame:
         if self._has_many_header:
-            return self._get_Y(self._sections[section],self.__target)
+            return self._get_Y(self._sections[section],self.__target, recode)
         else:   
-            return self._get_Y(self._data,self.__target)
+            return self._get_Y(self._data,self.__target, recode)
 
 
     def __impute_cols_na(self, df ,method="knn", n_neighbors=5):

@@ -21,7 +21,7 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
                        section:str=None):
         # Get data
         df = self.data_processor.dataset.get_X(section)
-        y = self.data_processor.dataset.get_Y(section)
+        y = self.data_processor.dataset.get_Y(section, recode=False)
         
         self.pca = PCA(n_components=n_components)
         self.scores = self.pca.fit_transform(df)
@@ -30,7 +30,7 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         self.coordinates = pd.DataFrame(self.scores,
                                         index=df.index, 
                                         columns=components_cols)
-        self.coordinates['class'] = y 
+        self.coordinates['class'] = y
 
           
     @requires_dataset
@@ -101,7 +101,7 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         self.__kmo()
         self.__bartlett()
         
-        self.execute_models(self, n_components=10, section=section)
+        self.execute_models(n_components=10, section=section)
         self.__kaiser()
         
         self.cumulative_var(0.8)
@@ -112,7 +112,7 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         self._calculate_metrics(section=section)
         
         # Interpret Bartlett
-        print('BARTLETT SPHERICITY TEST')
+        print('\n BARTLETT SPHERICITY TEST \n')
         print(f"Chi-squared: {self.bartlett['chi-squared']}")
         print("P-value: {self.bartlett['p-val']}")
         
@@ -122,38 +122,28 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
              print('P-value below 0.05, you may employ a PCA')
 
         # Interpret KMO
-        print('KAISER-MEYER-OLKIN (KMO)')
-        print(f"KMO: {self.__kmo}")
+        print('\n KAISER-MEYER-OLKIN (KMO) \n')
+        print(f"KMO: {self.kmo}")
 
-        if self.__kmo > 0.8:
+        if self.kmo > 0.8:
             print('KMO above 0.8, the sampling is adequate.')
             print('You may employ PCA.')
-        elif self.__kmo > 0.5:
+        elif self.kmo > 0.5:
             print('KMO between 0.5 and 0.8, the sampling is not ideal.')
             print('But you may proceed with PCA.')
         else:
             print('KMO below 0.05, we advise not employ a PCA')
         
         # Interpret Kaiser
-        print('KAISER CRITERION')
+        print('\n KAISER CRITERION \n')
         print(f"Number of eigenvalues >1: {self.kaiser}")
-        print('Retraining model with {self.kaiser} components...')
-        self.execute_models(self, n_components=self.kaiser, section=section)
-
-    
-    @requires_dataset
-    def loading_table(self):
-        #TODO
-        pass
-    
-    @requires_dataset
-    def loading_plot(self):
-        #TODO
-        pass
+        print(f'Retraining model with {self.kaiser} components...')
+        self.execute_models(n_components=self.kaiser, section=section)
 
     
     @requires_dataset
     def PCA_plot(self,
+                 vectors=True,
                  cmap:str='muted',
                  save:bool=True):
                 
@@ -172,6 +162,27 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         plt.xlabel(f'PC1 (explained variance: {str(PC1_var * 100)[:6]}%)')
         plt.ylabel(f'PC2 (explained variance: {str(PC2_var * 100)[:6]}%)')
         
+        # Plot loadings vectors (arrows)
+        if vectors == True:
+            
+            features = self.data_processor.dataset.get_X().columns
+            loadings = self.pca.components_.T * np.sqrt(self.pca.explained_variance_)
+            
+            for i, feature in enumerate(features):
+                plt.arrow(0, 
+                          0, 
+                          loadings[i, 0]*3, 
+                          loadings[i, 1]*3, 
+                          alpha=0.5,
+                          head_width=0.05
+                          , length_includes_head=True)
+                plt.text(loadings[i, 0]*3.2,
+                         loadings[i, 1]*3.2,
+                         feature,
+                         size=5,
+                         ha='center',
+                         va='center')
+
         # Save the figure
         if save == True:
             fig.savefig('PCA.png', format='png')
