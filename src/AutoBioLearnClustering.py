@@ -15,10 +15,6 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
         super().__init__()
     
     
-    def find_n_clusters():
-        pass
-    
-    
     @requires_dataset
     def execute_models(self,
                       method:str='average',

@@ -114,7 +114,7 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         # Interpret Bartlett
         print('\n BARTLETT SPHERICITY TEST \n')
         print(f"Chi-squared: {self.bartlett['chi-squared']}")
-        print("P-value: {self.bartlett['p-val']}")
+        print(f"P-value: {self.bartlett['p-val']}")
         
         if self.bartlett['p-val'] > 0.05:
              print('P-value above 0.05, we advise not employ a PCA')
