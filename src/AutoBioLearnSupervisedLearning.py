@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing_extensions import deprecated
 import pandas as pd
+from matplotlib import pyplot as plt
 from AutoBioLearn import AutoBioLearn
 from decorators.DatasetDecorators import apply_per_grouping
 from helpers import ModelHelper, XAIHelper
@@ -87,7 +88,36 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
         
         all_list["complete"] = section_metrics[["Model","Validation","Time_of_execution","Fold"]+ metrics]
         return all_list
-    
+
+
+    def plot_metrics(self, metrics:list[str]=[],rot=90, figsize=(12,6), fontsize=20, section: str = None ):
+        if not hasattr(self, '_metrics'):
+            self._calculate_metrics()
+
+        section_metrics = self._metrics
+        
+        if section is not None and self.data_processor.dataset.get_has_many_header():
+            section_metrics = self._metrics[self._metrics["Section"] == section]
+
+        for metric in metrics:                
+            df2  = pd.DataFrame({col:vals[metric] for col, vals in section_metrics.groupby("Model")})
+            meds = df2.median().sort_values(ascending=False)
+            axes = df2[meds.index].boxplot(figsize=figsize, rot=rot, fontsize=fontsize,
+                                        #by="Model",
+                                        boxprops=dict(linewidth=4, color='cornflowerblue'),
+                                        whiskerprops=dict(linewidth=4, color='cornflowerblue'),
+                                        medianprops=dict(linewidth=4, color='firebrick'),
+                                        capprops=dict(linewidth=4, color='cornflowerblue'),
+                                        flierprops=dict(marker='o', markerfacecolor='dimgray',
+                                                        markersize=12, markeredgecolor='black'))
+            axes.set_ylabel(metric, fontsize=fontsize)
+            axes.set_title("")
+            axes.get_figure().suptitle('Boxplots of %s metric' % (metric),
+                        fontsize=fontsize)
+            #axes.get_figure().show()
+            plt.show()
+
+
     def perform_shap_analysis(self,**kwargs):
         """
         kwargs use a list to filter by key models to analisys, where each key receives a list of values that will be filtered 

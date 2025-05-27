@@ -28,4 +28,7 @@ class AutoBioLearnUnsupervisedLearning(AutoBioLearn,ABC):
                        section:str=None):
         X = self.data_processor.dataset.get_X(section)
         return davies_bouldin_score(X, y_pred)
-    
+
+    @abstractmethod
+    def plot(self):
+        pass

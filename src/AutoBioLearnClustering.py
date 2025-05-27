@@ -44,7 +44,7 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                 
             if n_clusters == None:
                 try:
-                    t = self._optimal_n_clusters
+                    t = self._optimal_n_clusters  # what?
                 except:
                     t = '3'
             else:

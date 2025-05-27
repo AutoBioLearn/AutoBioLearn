@@ -1,10 +1,8 @@
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing_extensions import deprecated
-from matplotlib import pyplot as plt
 from data_treatment import DataProcessor, DatasetByFile, DatasetByWeb
 
-import pandas as pd
 from decorators import apply_per_grouping, requires_dataset
 class AutoBioLearn(ABC):
 
@@ -127,35 +125,7 @@ class AutoBioLearn(ABC):
     @abstractmethod
     def _calculate_metrics(self):
         return
-    
-    def plot_metrics(self, metrics:list[str]=[],rot=90, figsize=(12,6), fontsize=20, section: str = None ):
-        if not hasattr(self, '_metrics'):
-            self._calculate_metrics()
 
-        section_metrics = self._metrics
-        
-        if section is not None and self.data_processor.dataset.get_has_many_header():
-            section_metrics = self._metrics[self._metrics["Section"] == section]
-
-        for metric in metrics:                
-            df2  = pd.DataFrame({col:vals[metric] for col, vals in section_metrics.groupby("Model")})
-            meds = df2.median().sort_values(ascending=False)
-            axes = df2[meds.index].boxplot(figsize=figsize, rot=rot, fontsize=fontsize,
-                                        #by="Model",
-                                        boxprops=dict(linewidth=4, color='cornflowerblue'),
-                                        whiskerprops=dict(linewidth=4, color='cornflowerblue'),
-                                        medianprops=dict(linewidth=4, color='firebrick'),
-                                        capprops=dict(linewidth=4, color='cornflowerblue'),
-                                        flierprops=dict(marker='o', markerfacecolor='dimgray',
-                                                        markersize=12, markeredgecolor='black'))
-            axes.set_ylabel(metric, fontsize=fontsize)
-            axes.set_title("")
-            axes.get_figure().suptitle('Boxplots of %s metric' % (metric),
-                        fontsize=fontsize)
-            #axes.get_figure().show()
-            plt.show()  
-                  
-               
 #region Deprecated
 
     @requires_dataset

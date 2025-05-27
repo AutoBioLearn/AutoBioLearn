@@ -106,7 +106,7 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         self.__kmo()
         self.__bartlett()
         
-        self.execute(n_components=4, section=section)
+        self.execute(n_components=4, section=section) # n_comp = max vars
         self.__kaiser()
         
         self.cumulative_var(0.8)
