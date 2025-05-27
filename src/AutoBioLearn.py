@@ -9,7 +9,7 @@ from decorators import apply_per_grouping, requires_dataset
 class AutoBioLearn(ABC):
 
     def __init__(self) -> None:
-        self._models_executed = []      
+        self._models_executed = []  
 
     def load_dataset(self, data_processor: DataProcessor):
         if not hasattr(self, 'data_processor'):

@@ -16,9 +16,9 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         super().__init__()
 
     @requires_dataset
-    def execute_models(self,
-                       n_components:int=2,
-                       section:str=None):
+    def execute(self,
+                n_components:int=2,
+                section:str=None):
         # Get data
         df = self.data_processor.dataset.get_X(section)
         y = self.data_processor.dataset.get_Y(section, recode=False)
@@ -31,6 +31,11 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
                                         index=df.index, 
                                         columns=components_cols)
         self.coordinates['class'] = y
+
+
+    @requires_dataset
+    def execute_models():
+        pass
 
           
     @requires_dataset
@@ -101,7 +106,7 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         self.__kmo()
         self.__bartlett()
         
-        self.execute_models(n_components=10, section=section)
+        self.execute(n_components=4, section=section)
         self.__kaiser()
         
         self.cumulative_var(0.8)
@@ -138,7 +143,11 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
         print('\n KAISER CRITERION \n')
         print(f"Number of eigenvalues >1: {self.kaiser}")
         print(f'Retraining model with {self.kaiser} components...')
-        self.execute_models(n_components=self.kaiser, section=section)
+        self.execute(n_components=self.kaiser, section=section)
+
+
+    def evaluate_current_model():
+        pass
 
     
     @requires_dataset
@@ -188,4 +197,9 @@ class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
             fig.savefig('PCA.png', format='png')
         plt.show()
         plt.cla()
+        
+
+    @requires_dataset
+    def plot_metrics():
+        pass
 

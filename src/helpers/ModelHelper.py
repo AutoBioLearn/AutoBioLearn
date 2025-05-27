@@ -6,6 +6,9 @@ from sklearn.svm import SVC, SVR
 from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold,LeaveOneOut, StratifiedShuffleSplit, train_test_split
 from xgboost import XGBClassifier,XGBRegressor
 
+from sklearn.cluster import KMeans, SpectralClustering, Birch
+from sklearn.mixture import GaussianMixture
+
 
 class ModelHelper(object):
 
@@ -37,6 +40,22 @@ class ModelHelper(object):
     def const_svm()-> str: 
         return "svm"
     
+    @staticmethod
+    def const_kmeans()-> str: 
+        return "kmeans"
+    
+    @staticmethod
+    def const_gaussianmix()-> str: 
+        return "gaussian_mixture"
+    
+    @staticmethod
+    def const_spectral()-> str: 
+        return "spectral"
+    
+    @staticmethod
+    def const_birch()-> str: 
+        return "birch"
+    
     @staticmethod  
     def get_model(model, model_type="classifier"):
         if model is None or model_type is None:
@@ -58,10 +77,19 @@ class ModelHelper(object):
                         ModelHelper.const_random_forest(): (RandomForestRegressor,{}),
                     }
         
+        clustering ={
+                        ModelHelper.const_kmeans():      KMeans,
+                        ModelHelper.const_gaussianmix(): GaussianMixture,
+                        ModelHelper.const_spectral():    SpectralClustering,
+                        ModelHelper.const_birch():       Birch,
+                    }
+        
         if model_type.lower() == 'classifier':
             return classifiers[model.lower()]
         elif model_type.lower() == 'regressor':
             return regressors[model.lower()]
+        elif model_type.lower() == 'clustering':
+            return clustering[model.lower()]
         
 
     @staticmethod  
@@ -104,3 +132,4 @@ class ModelHelper(object):
                 model_param[k.replace(model+"_","")]= v
 
         return model_param
+
