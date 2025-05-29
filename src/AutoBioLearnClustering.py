@@ -159,15 +159,16 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
         for m, func in {'Max': (lambda x: x.idxmax()),
                         'Min': (lambda x: x.idxmin())}.items():
             a = func(stack)
-            print(a)
-            # print(f"{m} value:{a[0]} clusters, {a[1]}")
-            # if (m == 'Max' and criterion != 'davies_bouldin') \
-            #     or (m == 'Min' and criterion == 'davies_bouldin'):
-            #     self._best_params = {'model':a[1],
-            #                          'nclusters':a[0],
-            #                          'section':section}
-            #     return a
-                # self.run(**self._best_params)
+            print(f"{m} value:{a[0][0]} clusters, metric {a[0][1]}, \
+                  {a.index[0]} linkage")
+            if (m == 'Max' and criterion != 'davies_bouldin') \
+                or (m == 'Min' and criterion == 'davies_bouldin'):
+                self._best_params = {'metric':a[0][1],
+                                     'method': a.index[0],
+                                     'n_clusters':a[0][0],
+                                     'section':section}
+                print(self._best_params)
+                self.run(**self._best_params)
    
     
     @requires_dataset
@@ -424,7 +425,7 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
         ax.set_xlabel(x_axis)
         ax.set_ylabel(y_axis)
 
-        plt.title(f'Section: {title[0]}, {title[1]}, {title[2]} clusters')
+        plt.title(f'Section: {title[0]}, {title[1]}')
         fig.savefig(f'sec_{title[0]}-{title[1]}-{title[2]}-{x_axis}-{y_axis}.png')
 
         plt.cla()
