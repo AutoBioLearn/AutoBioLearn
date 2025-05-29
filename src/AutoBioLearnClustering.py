@@ -17,62 +17,157 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
     
     def __init__(self) -> None:
         super().__init__()
-    
-    
+
+
+    def _cophenetic_corr(self,
+                         Z,
+                         section:str=None,
+                         print_res=True):
+        try:
+            X = self.data_processor.dataset.get_X(section)
+        except KeyError:
+            X = self.data_processor.dataset.get_X()
+        
+        c, _ = sch.cophenet(Z, scipy.spatial.distance.pdist(X))
+        if print_res == True:
+            if c >= 0.75:
+                print(f'Cophenetic correlation is {c}: good fit')
+            elif c >= 0.5:
+                print(f'Cophenetic correlation is {c}: moderate fit')
+            else:
+                print(f'Cophenetic correlation is {c}: poor fit')
+        return c
+
+
     @requires_dataset
-    def execute_models(self,
-                      method:str='average',
-                      metric:str='euclidean',
-                      n_clusters:int=None,
-                      criterion:str='inconsistent',
-                      optimize:bool=False,
-                      section:str=None):
+    def run(self,
+            method:str='average',
+            n_clusters:int=3,
+            section:str=None,
+            metric:str='euclidean',
+            print_met=False):
             """
             method = 'single', 'average', 'complete', 'ward', 'centroid', etc
             metric = 'braycurtis', 'canberra', 'chebyshev', 'cityblock', 
-                     'correlation', 'cosine', 'dice', 'euclidean', 'hamming', 
-                     'jaccard', 'jensenshannon', 'kulczynski1', 'mahalanobis',
-                     'matching', 'minkowski', 'rogerstanimoto', 'russellrao', 
-                     'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean',
-                     'yule'.
+                'correlation', 'cosine', 'dice', 'euclidean', 'hamming', 
+                'jaccard', 'jensenshannon', 'kulczynski1', 'mahalanobis',
+                'matching', 'minkowski', 'rogerstanimoto', 'russellrao', 
+                'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean',
+                'yule'.
             """
             # Get data
-            X = self.data_processor.dataset.get_X(section)
-            self._Hclustering = sch.linkage(X,
-                                            method = method,
-                                            metric = metric)
+            try:
+                X = self.data_processor.dataset.get_X(section)
+            except KeyError:
+                X = self.data_processor.dataset.get_X()
+
+            model = sch.linkage(X,
+                                method = method,
+                                metric = metric)
+
+            yhat = fcluster(model,
+                            t=n_clusters,
+                            criterion='maxclust')
+            
+            self._current_model = {'results' : yhat,
+                                   'params'  : (section, model, metric, n_clusters),
+                                   'object'  : model}
+
+            if print_met == True:
+                metrics = ['silhouette_euclidean',
+                           'silhouette_cosine',
+                           'calinski_harabasz',
+                           'davies_bouldin']
+                metrics = {key : self._metric_options(key) for key in metrics}
+                for met, (function, kargs) in metrics.items():
+                    print(f'{met} = {function(yhat, **kargs)}')
+                self._cophenetic_corr(model, X)
+
+
+    def execute_models(self,
+                       method:list[str]=['average', 'single', 'complete'],
+                       cluster_range:tuple=(2, 5),
+                       metric:str=['euclidean', 'braycurtis', 'canberra', 'correlation'],
+                       section:str=None):
+
+        section_name = section if section is not None else 'all variables'
+    
+        for m in method:
+            for d in metric:
+                col_key = (section_name, m, d)
                 
-            if n_clusters == None:
-                try:
-                    t = self._optimal_n_clusters  # what?
-                except:
-                    t = '3'
-            else:
-                t = n_clusters
-            
-            self.predicted_cluster = fcluster(self._Hclustering,
-                                              t=t,
-                                              criterion=criterion)
-            
-            # For this becoming like you did below for partitioning.
-            # A lot of work.
-            # 1- Mind of sections
-            # 2 - You'd actually have a grid of metrics and methods.
-            # What is on the cells of this grid?
-            # It should store the number of clusters.
-            # And the sch.linkage object?
-            
-
-    def cophenetic_corr():
-        pass
+                if col_key not in self._models_executed:
+                    self._models_executed[col_key] = {}
+                
+                for k in range(cluster_range[0], cluster_range[1] + 1):
+                    self.run(method=m, n_clusters=k, section=section, metric=d)
+                    self._models_executed[col_key][k] = self._current_model
 
 
-    def _calculate_metrics(self):
-        print('Not really implemented yet') 
-        # Just run the cophenetic correlation!
+    def _calculate_metrics(self,
+                           metrics:list[str]=['cophenetic',
+                                              'silhouette_euclidean', 
+                                              'calinski_harabasz',
+                                              'davies_bouldin']):
+        results = self._models_executed
+        scores = {}
 
-    def evaluate_models(self):
-        print('Not really implemented yet')   
+        metrics_yhat = {k : self._metric_options(k) for k in metrics if k != 'cophenetic'}
+
+        for (s, m, d), clusters in results.items():
+            for met, (function, kargs) in metrics_yhat.items():
+                l = {}
+                for k, v in clusters.items():
+                    if len(set(v['results'])) <= 1:
+                        l[k] = np.nan
+                        print(f"{s}, {m}, {d} with only 1 cluster. {met} set to NaN.")
+                    else:
+                        l[k] = function(v['results'], **kargs)
+                scores[(s, m, d, met)] = l
+
+        if 'cophenetic' in metrics:
+            l = {
+                k : self._cophenetic_corr(v['object'], s, print_res=False)
+                for k, v in clusters.items()}
+            scores[(s, m, d, 'cophenetic')] = l
+
+        metrics = pd.DataFrame(scores)
+        metrics.index = metrics.index.rename('Number of clusters')
+        metrics.columns = metrics.columns.rename(['Section',
+                                                  'Method',
+                                                  'Clustering metric',
+                                                  'Evaluation metric'])
+        self.metrics = metrics
+
+
+    def evaluate_models(self,
+                        criterion:str='cophenetic',
+                        metrics:list[str]=['cophenetic',
+                                           'silhouette_euclidean', 
+                                           'calinski_harabasz',
+                                           'davies_bouldin'],
+                        section: str = 'all variables'):
+
+        self._calculate_metrics(metrics)
+
+        print(f'Models will be evaluated by {criterion} \n')
+        subset = self.metrics.xs(criterion, level=3, axis=1)
+        subset = subset.xs(section, level=0, axis=1)
+
+        print(subset)
+        stack = subset.stack()
+        for m, func in {'Max': (lambda x: x.idxmax()),
+                        'Min': (lambda x: x.idxmin())}.items():
+            a = func(stack)
+            print(a)
+            # print(f"{m} value:{a[0]} clusters, {a[1]}")
+            # if (m == 'Max' and criterion != 'davies_bouldin') \
+            #     or (m == 'Min' and criterion == 'davies_bouldin'):
+            #     self._best_params = {'model':a[1],
+            #                          'nclusters':a[0],
+            #                          'section':section}
+            #     return a
+                # self.run(**self._best_params)
    
     
     @requires_dataset
@@ -163,6 +258,9 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
             
         plt.show()
         plt.cla()
+        
+    def plot(self):
+        print('nope')
   
 
 ###############################################################################
@@ -171,16 +269,6 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
     
     def __init__(self) -> None:
         super().__init__()
-    
-    def _metric_options(self, key):
-        options = {'silhouette_euclidean':(super().silhouette, {'metric':'euclidean'}),
-                   'silhouette_cosine':   (super().silhouette, {'metric':'cosine'   }),
-                   'l1':                  (super().silhouette, {'metric':'l1'       }),
-                   'l2':                  (super().silhouette, {'metric':'l2'       }),
-                   'manhattan':           (super().silhouette, {'metric':'manhattan'}),
-                   'calinski_harabasz':   (super().calinski_harabasz,              {}),
-                   'davies_bouldin':      (super().davies_bouldin,                 {})}
-        return options[key]
 
     def run(self,
             model,
@@ -237,7 +325,7 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
             self._models_executed = {(section_name, key): vals for key, vals in models_execution.items()}
         else:
             for key, vals in models_execution.items(): 
-                self._models_executed[(section, key)] = vals
+                self._models_executed[(section_name, key)] = vals
     
 
     def _calculate_metrics(self,
@@ -276,11 +364,15 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
         print(f'Models will be evaluated by {criterion} \n')
         subset = self.metrics.xs(criterion, level=2, axis=1)
         subset = subset.xs(section, level=0, axis=1)
+        
+        if subset.isnull().all().all():
+            print('No available results for this criterion and section')
+            return
 
         if figure == True:
             fig, ax = plt.subplots(figsize=(10, 10))
             sns.heatmap(subset, ax=ax)
-            plt.title(f'Dendrogram - {criterion}', fontsize=16)
+            plt.title(f'{criterion}', fontsize=16)
             fig.savefig(f'{criterion}_clusters_methods.png')
         
         print(subset)        

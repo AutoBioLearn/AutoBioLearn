@@ -7,10 +7,10 @@ import numpy as np
 from factor_analyzer.factor_analyzer import calculate_kmo
 from factor_analyzer.factor_analyzer import calculate_bartlett_sphericity
 
-from AutoBioLearnUnsupervisedLearning import AutoBioLearnUnsupervisedLearning
+from AutoBioLearn import AutoBioLearn
 from decorators import requires_dataset
 
-class AutoBioLearnPCA(AutoBioLearnUnsupervisedLearning):
+class AutoBioLearnPCA(AutoBioLearn):
     
     def __init__(self) -> None:
         super().__init__()
