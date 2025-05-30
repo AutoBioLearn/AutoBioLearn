@@ -16,9 +16,9 @@ class AutoBioLearnPCA(AutoBioLearn):
         super().__init__()
 
     @requires_dataset
-    def execute(self,
-                n_components:int=2,
-                section:str=None):
+    def run(self,
+            n_components:int=2,
+            section:str=None):
         # Get data
         df = self.data_processor.dataset.get_X(section)
         y = self.data_processor.dataset.get_Y(section, recode=False)
@@ -37,7 +37,7 @@ class AutoBioLearnPCA(AutoBioLearn):
     def execute_models():
         pass
 
-          
+
     @requires_dataset
     def __kmo(self):
         """
@@ -111,7 +111,8 @@ class AutoBioLearnPCA(AutoBioLearn):
         
         self.cumulative_var(0.8)
         self.scree()
-    
+
+
     def evaluate_models(self, section:str=None):
         
         self._calculate_metrics(section=section)
@@ -146,15 +147,11 @@ class AutoBioLearnPCA(AutoBioLearn):
         self.execute(n_components=self.kaiser, section=section)
 
 
-    def evaluate_current_model():
-        pass
-
-    
     @requires_dataset
-    def PCA_plot(self,
-                 vectors=True,
-                 cmap:str='muted',
-                 save:bool=True):
+    def plot(self,
+             vectors=True,
+             cmap:str='muted',
+             save:bool=True):
                 
         # PCA plot
         PC1_var= self.pca.explained_variance_ratio_[0]
@@ -196,10 +193,4 @@ class AutoBioLearnPCA(AutoBioLearn):
         if save == True:
             fig.savefig('PCA.png', format='png')
         plt.show()
-        plt.cla()
-        
-
-    @requires_dataset
-    def plot_metrics():
-        pass
-
+        plt.close(fig)

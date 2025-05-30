@@ -174,26 +174,40 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
 def __check_and_run(self,
                     method: str,
                     metric: str,
-                    n_clusters: int,
+                    nclust: int,
                     section: str):
     """Check if current params match user input. If not, rerun."""
 
-    current_params = getattr(self, '_best_params', None)
+    cparams = getattr(self, '_best_params', None)
 
-    if current_params is not None and \
-       current_params['model'] == method and \
-       current_params['metric'] == metric and \
-       current_params['nclusters'] == n_clusters and \
-       current_params['section'] == section:
+    # model was run. And it is exactly the same or user did not specify.
+    if cparams is not None and \
+       method in [cparams['method'], None] and \
+       metric in [cparams['metric'], None] and \
+       nclust in [cparams['nclusters'], None] and \
+       cparams['section'] == section:
+        print("Using cached model")
+        return cparams['method'], cparams['metric'], cparams['nclusters']
 
-       print("Using cached model")
+    # No model at all. And user does not specify.
+    elif cparams is None and \
+         (method == None or \
+          metric == None or \
+          nclust == None):
+        print('Either method, metric or nclusters was set as None. \n',
+              'Finding the best match. If any of the method, metric or \n',
+              'nclusters was specified in the input, it will be overriden \n',
+              'by the new best match.')
+        self.execute_models(section=section)
+        cparams = getattr(self, '_best_params', None)
+        return cparams['method'], cparams['metric'], cparams['nclusters']
     else:
-        print(f"Running model with {method} linkage, {metric}, \
-              {n_clusters} clusters in the {section} section")
+        print('Running model as specified')
         self.run(method=method,
                  metric=metric,
-                 n_clusters=n_clusters,
+                 n_clusters=nclust,
                  section=section)
+        return method, metric, nclust
 
 
     @requires_dataset
@@ -208,14 +222,11 @@ def __check_and_run(self,
         # Get data
         X = self.data_processor.dataset.get_X(section)
 
-        method = self.__check(method, 'method', section)
-        metric = self.__check(metric, 'metric', section)
-        n_clusters = self.__check(n_clusters, 'n_clusters', section)
+        method, metric, n_clusters = self.__check_and_run(method=method,
+                                                          metric=metric,
+                                                          n_clusters=n_clusters,
+                                                          section=section)
 
-        self.__check_and_run(method=method,
-                     metric=metric,
-                     n_clusters=n_clusters,
-                     section=section)
 
         yhat = yhat = self._current_model['results']
         clusters = set(yhat)
@@ -245,42 +256,51 @@ def __check_and_run(self,
         if save == True:
             fig.savefig(f'heatmap_{metric}_{method}.png')
 
-        plt.cla()
-    
+        plt.close(fig)
+
+
     @requires_dataset
     def dendogram(self,
                   method:str=None,
                   metric:str=None,
-                  thresh:int=3,
+                  n_clusters:str=None,
                   section:str='all variables',
                   save:bool=True):
 
+        method, metric, n_clusters = self.__check_and_run(method=method,
+                                                          metric=metric,
+                                                          n_clusters=n_clusters,
+                                                          section=section)
+
+        # calculate color threshold
+        if n_clusters == 1:
+            ct = 0  # or set to None and skip color threshold
+        else:
+            ct = self._current_model['object'][-(n_clusters-1), 2]
+
         fig, axis = plt.subplots(figsize=(8,12))
 
-        method = self.__check(method, 'method', section)
-        metric = self.__check(metric, 'metric', section)
-
-        sch.dendrogram(self._current_model['model'],
-                       labels = self.data_processor.dataset.get_X.index,
+        sch.dendrogram(self._current_model['object'],
+                       labels = self.data_processor.dataset.get_X(section).index,
                        ax=axis,
                        orientation='left',
-                       color_threshold=thresh)
+                       color_threshold=ct)
         plt.title(f'Dendrogram - {method}', fontsize=16)
         plt.ylabel(f'{metric}', fontsize=16)
         
         # Save it
         if save == True:
-            fig.savefig(f'dendogram_{metric}_{method}.png')
+            fig.savefig(f'dendogram_{metric}_{method}_{section}.png')
 
-        plt.cla()
-        
+        plt.close(fig)
+
+
     def plot(self,
              dendogram=True,
              heatmap=True,
              method:str=None,
              metric:str=None,
              section:str='all variables',
-             dend_tresh:int=3,
              save:bool=True):
         
         heatmap(method=method,
@@ -291,8 +311,7 @@ def __check_and_run(self,
         dendogram(method=method,
                   metric=metric,
                   section=section,
-                  save=save,
-                  thresh=dend_tresh)
+                  save=save)
 
 
 ###############################################################################
@@ -459,5 +478,5 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
         plt.title(f'Section: {title[0]}, {title[1]}')
         fig.savefig(f'sec_{title[0]}-{title[1]}-{title[2]}-{x_axis}-{y_axis}.png')
 
-        plt.cla()
+        plt.close(fig)
 
