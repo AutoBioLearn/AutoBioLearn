@@ -169,36 +169,59 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                                      'section':section}
                 print(self._best_params)
                 self.run(**self._best_params)
-   
-    
+
+
+def __check_and_run(self,
+                    method: str,
+                    metric: str,
+                    n_clusters: int,
+                    section: str):
+    """Check if current params match user input. If not, rerun."""
+
+    current_params = getattr(self, '_best_params', None)
+
+    if current_params is not None and \
+       current_params['model'] == method and \
+       current_params['metric'] == metric and \
+       current_params['nclusters'] == n_clusters and \
+       current_params['section'] == section:
+
+       print("Using cached model")
+    else:
+        print(f"Running model with {method} linkage, {metric}, \
+              {n_clusters} clusters in the {section} section")
+        self.run(method=method,
+                 metric=metric,
+                 n_clusters=n_clusters,
+                 section=section)
+
+
     @requires_dataset
     def heatmap(self,
-                method:str='average',
-                metric:str='euclidean',
+                method:str=None,
+                metric:str=None,
+                n_clusters:str=None,
                 cmap:str='plasma_r',
-                section:str=None,
+                section:str='all variables',
                 save:bool=True):
-        """
-        method = 'single', 'average', 'complete', 'ward', 'centroid', etc
-        metric = 'braycurtis', 'canberra', 'chebyshev', 'cityblock', 
-                 'correlation', 'cosine', 'dice', 'euclidean', 'hamming', 
-                 'jaccard', 'jensenshannon', 'kulczynski1', 'mahalanobis',
-                 'matching', 'minkowski', 'rogerstanimoto', 'russellrao', 
-                 'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean',
-                 'yule'.
-        """
-        
+
         # Get data
         X = self.data_processor.dataset.get_X(section)
-        try:
-            y = self.data_processor.dataset.get_Y(section)
-        except:
-            y = self.data_processor.dataset.get_Y()
-        
-        # Add colour to the class
-        colours = sns.color_palette("husl", len(y.unique())).as_hex()
-        colours = dict(zip(y.unique(), colours))
-        group = y.replace(colours)
+
+        method = self.__check(method, 'method', section)
+        metric = self.__check(metric, 'metric', section)
+        n_clusters = self.__check(n_clusters, 'n_clusters', section)
+
+        self.__check_and_run(method=method,
+                     metric=metric,
+                     n_clusters=n_clusters,
+                     section=section)
+
+        yhat = yhat = self._current_model['results']
+        clusters = set(yhat)
+        palette = sns.color_palette("husl", len(clusters)).as_hex()
+        colours = dict(zip(clusters, palette))
+        group = pd.Series(yhat, index=X.index).replace(colours)
 
         # Plot heatmap
         fig = sns.clustermap(X,
@@ -221,31 +244,23 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
         # Save it
         if save == True:
             fig.savefig(f'heatmap_{metric}_{method}.png')
-            
-        plt.show()
+
         plt.cla()
     
     @requires_dataset
     def dendogram(self,
-                  method:str='average',
-                  metric:str='euclidean',
+                  method:str=None,
+                  metric:str=None,
                   thresh:int=3,
-                  section:str=None,
+                  section:str='all variables',
                   save:bool=True):
-        """
-        method = 'single', 'average', 'complete', 'ward', 'centroid', etc
-        metric = 'braycurtis', 'canberra', 'chebyshev', 'cityblock', 
-                 'correlation', 'cosine', 'dice', 'euclidean', 'hamming', 
-                 'jaccard', 'jensenshannon', 'kulczynski1', 'mahalanobis',
-                 'matching', 'minkowski', 'rogerstanimoto', 'russellrao', 
-                 'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean',
-                 'yule'.
-        """
 
-        # Plot
         fig, axis = plt.subplots(figsize=(8,12))
-        
-        sch.dendrogram(self._Hclustering,
+
+        method = self.__check(method, 'method', section)
+        metric = self.__check(metric, 'metric', section)
+
+        sch.dendrogram(self._current_model['model'],
                        labels = self.data_processor.dataset.get_X.index,
                        ax=axis,
                        orientation='left',
@@ -256,13 +271,29 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
         # Save it
         if save == True:
             fig.savefig(f'dendogram_{metric}_{method}.png')
-            
-        plt.show()
+
         plt.cla()
         
-    def plot(self):
-        print('nope')
-  
+    def plot(self,
+             dendogram=True,
+             heatmap=True,
+             method:str=None,
+             metric:str=None,
+             section:str='all variables',
+             dend_tresh:int=3,
+             save:bool=True):
+        
+        heatmap(method=method,
+                metric=metric,
+                section=section,
+                save=save)
+
+        dendogram(method=method,
+                  metric=metric,
+                  section=section,
+                  save=save,
+                  thresh=dend_tresh)
+
 
 ###############################################################################
 
