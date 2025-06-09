@@ -23,7 +23,11 @@ class AutoBioLearnPCA(AutoBioLearn):
         df = self.data_processor.dataset.get_X(section)
         y = self.data_processor.dataset.get_Y(section, recode=False)
         
-        self.pca = PCA(n_components=n_components)
+        if n_components is None:
+            self.pca = PCA()
+            n_components = min(df.shape)
+        else:
+            self.pca = PCA(n_components=n_components)
         self.scores = self.pca.fit_transform(df)
         
         components_cols = [f'PC{i}' for i in range(1, n_components+1)]
@@ -33,44 +37,49 @@ class AutoBioLearnPCA(AutoBioLearn):
         self.coordinates['class'] = y
 
 
-    @requires_dataset
     def execute_models():
-        pass
+        print('Not applicable to PCA')
 
 
     @requires_dataset
-    def __kmo(self):
+    def _kmo(self,
+             section:str=None):
         """
         Kaiser–Meyer–Olkin (KMO)
         MO should be one in the ideal case. 
         High KMO values indicate a PCA with few errors, overall.
         If KMO is more than 0.5, PCA could be used
         """
-        _,kmo_model=calculate_kmo(self.data_processor.dataset.get_X())
+        _,kmo_model=calculate_kmo(self.data_processor.dataset.get_X(section))
         self.kmo = kmo_model
 
     
     @requires_dataset
-    def __bartlett(self):
+    def _bartlett(self,
+                  section:str=None):
         """
         The null hypothesis is that the intercorrelation matrix comes from 
         a noncollinear populaton or simply that there is no collinearity 
         between the variables, which would render PCA impossible as it depends
         on the construction of a linear combination of the variables.
         """
-        chi,p =calculate_bartlett_sphericity(self.data_processor.dataset.get_X())
+        chi,p =calculate_bartlett_sphericity(self.data_processor.dataset.get_X(section))
         self.bartlett = {'p-val':p, 'chi-squared':chi}
              
     
     @requires_dataset
-    def __kaiser(self):
+    def _kaiser(self,
+                section:str=None):
         """
         The Kaiser criterion is a method for determining how many principal 
         components (PCs) to retain in a principal components analysis (PCA).
         It counts how many eigenvalues are >1.
         """
-        eigenvalues = self.pca.explained_variance_
-        self.kaiser = len(np.where(eigenvalues > 1)[0])
+        df = self.data_processor.dataset.get_X(section)
+        corr_matrix = np.corrcoef(df.T)
+
+        eigvals, _ = np.linalg.eigh(corr_matrix)
+        self.kaiser = len(np.where(eigvals > 1)[0])
 
 
     @requires_dataset
@@ -78,21 +87,35 @@ class AutoBioLearnPCA(AutoBioLearn):
 
         var_ratio = np.cumsum(self.pca.explained_variance_ratio_)
         fig, ax = plt.subplots()
-        sns.lineplot(var_ratio, ax=ax)
+        sns.lineplot(x=range(1, len(var_ratio)+1),
+                     y=var_ratio,
+                     ax=ax)
         ax.set_xlabel('Number of Components')
         ax.set_ylabel('Cumulative Explained Variance')
         ax.hlines(y=thresh, xmin=0, xmax=len(var_ratio), color='r')
         plt.show()
         if save == True:
             fig.savefig('cumulative_variance.png', format='png')
+        
+        i = 0
+        val = 0
+        while val < thresh:
+            i += 1 
+            val = var_ratio[i]
 
+        if hasattr(self, '_cumulative_var'):
+            self._cumulative_var[thresh] = i
+        else:
+            self._cumulative_var = {thresh : i}
 
     @requires_dataset
     def scree(self, save=True):
 
         var = self.pca.explained_variance_
         fig, ax = plt.subplots()
-        sns.lineplot(var, ax=ax)
+        sns.lineplot(x=range(1, len(var)+1),
+                     y=var,
+                     ax=ax)
         ax.set_xlabel('Number of Components')
         ax.set_ylabel('Explained variance')
         ax.set_title('Scree plot')
@@ -102,20 +125,25 @@ class AutoBioLearnPCA(AutoBioLearn):
 
     
     @requires_dataset
-    def _calculate_metrics(self, section:str=None):
-        self.__kmo()
-        self.__bartlett()
-        
-        self.execute(n_components=4, section=section) # n_comp = max vars
-        self.__kaiser()
-        
-        self.cumulative_var(0.8)
+    def _calculate_metrics(self,
+                           cumvar,
+                           section:str=None):
+        self._kmo(section)
+        self._bartlett(section)
+
+        self._kaiser(section)
+
+        self.run(n_components=None, section=section)
+        self.cumulative_var(cumvar)
         self.scree()
 
 
-    def evaluate_models(self, section:str=None):
+    def evaluate_models(self,
+                        kaiser=True,
+                        cumulative_variance:float=0.8,
+                        section:str=None):
         
-        self._calculate_metrics(section=section)
+        self._calculate_metrics(cumvar=cumulative_variance, section=section)
         
         # Interpret Bartlett
         print('\n BARTLETT SPHERICITY TEST \n')
@@ -143,20 +171,35 @@ class AutoBioLearnPCA(AutoBioLearn):
         # Interpret Kaiser
         print('\n KAISER CRITERION \n')
         print(f"Number of eigenvalues >1: {self.kaiser}")
-        print(f'Retraining model with {self.kaiser} components...')
-        self.execute(n_components=self.kaiser, section=section)
+ 
+        # Interpreting cumulative variance
+        print('\n CUMULATIVE VARIANCE \n')
+        n = self._cumulative_var[cumulative_variance]
+        print(f'{n} components explain {100*cumulative_variance}% of the variance.')
+
+        # Retrain
+        if kaiser == True:
+            n = self.kaiser
+            print('\n Using the Kaiser criterion to determine the number of components\n')
+        else:
+            print(f'\n Considering a cumulative variance of {100*cumulative_variance}% to determine the number of components\n')
+        print(f'Retraining model with {n} components...')
+        self.run(n_components=n, section=section)
 
 
     @requires_dataset
     def plot(self,
              vectors=True,
              cmap:str='muted',
+             legend=False,
              save:bool=True):
-                
+
+        legend = 'brief' if legend == True else False
+
         # PCA plot
-        PC1_var= self.pca.explained_variance_ratio_[0]
-        PC2_var= self.pca.explained_variance_ratio_[1]
-        
+        PC1_var= round(self.pca.explained_variance_ratio_[0] * 100, 2)
+        PC2_var= round(self.pca.explained_variance_ratio_[1] * 100, 2)
+
         fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(7, 7), dpi = 600)
         sns.scatterplot(data=self.coordinates,
                         x='PC1',
@@ -164,9 +207,9 @@ class AutoBioLearnPCA(AutoBioLearn):
                         hue='class',
                         palette=cmap,
                         ax=axes,
-                        legend='brief')
-        plt.xlabel(f'PC1 (explained variance: {str(PC1_var * 100)[:6]}%)')
-        plt.ylabel(f'PC2 (explained variance: {str(PC2_var * 100)[:6]}%)')
+                        legend=legend)
+        plt.xlabel(f'PC1 (explained variance: {PC1_var}')
+        plt.ylabel(f'PC2 (explained variance: {PC2_var}')
         
         # Plot loadings vectors (arrows)
         if vectors == True:

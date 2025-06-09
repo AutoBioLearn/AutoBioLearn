@@ -125,11 +125,11 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                         l[k] = function(v['results'], **kargs)
                 scores[(s, m, d, met)] = l
 
-        if 'cophenetic' in metrics:
-            l = {
-                k : self._cophenetic_corr(v['object'], s, print_res=False)
-                for k, v in clusters.items()}
-            scores[(s, m, d, 'cophenetic')] = l
+            if 'cophenetic' in metrics:
+                l = {
+                    k : self._cophenetic_corr(v['object'], s, print_res=False)
+                    for k, v in clusters.items()}
+                scores[(s, m, d, 'cophenetic')] = l
 
         metrics = pd.DataFrame(scores)
         metrics.index = metrics.index.rename('Number of clusters')
@@ -171,52 +171,55 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                 self.run(**self._best_params)
 
 
-def __check_and_run(self,
-                    method: str,
-                    metric: str,
-                    nclust: int,
-                    section: str):
-    """Check if current params match user input. If not, rerun."""
-
-    cparams = getattr(self, '_best_params', None)
-
-    # model was run. And it is exactly the same or user did not specify.
-    if cparams is not None and \
-       method in [cparams['method'], None] and \
-       metric in [cparams['metric'], None] and \
-       nclust in [cparams['nclusters'], None] and \
-       cparams['section'] == section:
-        print("Using cached model")
-        return cparams['method'], cparams['metric'], cparams['nclusters']
-
-    # No model at all. And user does not specify.
-    elif cparams is None and \
-         (method == None or \
-          metric == None or \
-          nclust == None):
-        print('Either method, metric or nclusters was set as None. \n',
-              'Finding the best match. If any of the method, metric or \n',
-              'nclusters was specified in the input, it will be overriden \n',
-              'by the new best match.')
-        self.execute_models(section=section)
+    def __check_and_run(self,
+                        method: str,
+                        metric: str,
+                        nclust: int,
+                        section: str):
+        """Check if current params match user input. If not, rerun."""
         cparams = getattr(self, '_best_params', None)
-        return cparams['method'], cparams['metric'], cparams['nclusters']
-    else:
-        print('Running model as specified')
-        self.run(method=method,
-                 metric=metric,
-                 n_clusters=nclust,
-                 section=section)
-        return method, metric, nclust
+    
+        # If all user params are provided, run with them directly
+        if method is not None \
+            and metric is not None \
+            and nclust is not None \
+            and method is not None:
+            print('Running model as specified by user.')
+            self.run(method=method,
+                     metric=metric,
+                     n_clusters=nclust,
+                     section=section)
+            return method, metric, nclust
+    
+        elif cparams is not None:
+            method = method if method is not None else cparams['method']
+            metric = metric if metric is not None else cparams['metric']
+            nclust = nclust if nclust is not None else cparams['n_clusters']
+            section = section if section is not None else cparams['section']
+    
+            print('Using cached configuration with possible user overrides.')
+            self.run(method=method,
+                     metric=metric,
+                     n_clusters=nclust,
+                     section=section)
+            return method, metric, nclust
+
+        else:
+            print('No cached model and incomplete input. Running full evaluation.')
+            self.execute_models(section=section)
+            self.evaluate_models(section=section)
+    
+            cparams = self._best_params
+            return cparams['method'], cparams['metric'], cparams['n_clusters']
 
 
     @requires_dataset
     def heatmap(self,
                 method:str=None,
                 metric:str=None,
-                n_clusters:str=None,
+                n_clusters:int=None,
                 cmap:str='plasma_r',
-                section:str='all variables',
+                section:str=None,
                 save:bool=True):
 
         # Get data
@@ -224,7 +227,7 @@ def __check_and_run(self,
 
         method, metric, n_clusters = self.__check_and_run(method=method,
                                                           metric=metric,
-                                                          n_clusters=n_clusters,
+                                                          nclust=n_clusters,
                                                           section=section)
 
 
@@ -256,43 +259,51 @@ def __check_and_run(self,
         if save == True:
             fig.savefig(f'heatmap_{metric}_{method}.png')
 
-        plt.close(fig)
+        plt.show()
+        plt.close()
 
 
     @requires_dataset
     def dendogram(self,
                   method:str=None,
                   metric:str=None,
-                  n_clusters:str=None,
-                  section:str='all variables',
+                  n_clusters:int=2,
+                  section:str=None,
                   save:bool=True):
 
         method, metric, n_clusters = self.__check_and_run(method=method,
                                                           metric=metric,
-                                                          n_clusters=n_clusters,
+                                                          nclust=n_clusters,
                                                           section=section)
 
-        # calculate color threshold
-        if n_clusters == 1:
-            ct = 0  # or set to None and skip color threshold
-        else:
-            ct = self._current_model['object'][-(n_clusters-1), 2]
+        X = self.data_processor.dataset.get_X(section)
+        labels = self._current_model['results']
+        clusters = set(labels)
+        palette = sns.color_palette("husl", len(clusters)).as_hex()
+        clust2color = dict(zip(clusters, palette))
+        index2color = pd.Series(labels, index=X.index).replace(clust2color)
 
-        fig, axis = plt.subplots(figsize=(8,12))
-
+        fig, ax = plt.subplots(figsize=(8, 12))
         sch.dendrogram(self._current_model['object'],
                        labels = self.data_processor.dataset.get_X(section).index,
-                       ax=axis,
-                       orientation='left',
-                       color_threshold=ct)
+                       ax=ax,
+                       orientation='left')
+        
+        # Color the labels
+        for label in ax.get_yticklabels():
+            leaf_id = label.get_text()
+            color = index2color.get(leaf_id, "#808080")
+            label.set_color(color)
+        
         plt.title(f'Dendrogram - {method}', fontsize=16)
-        plt.ylabel(f'{metric}', fontsize=16)
+        plt.xlabel(f'{metric}', fontsize=16)
         
         # Save it
         if save == True:
             fig.savefig(f'dendogram_{metric}_{method}_{section}.png')
 
-        plt.close(fig)
+        plt.show()
+        plt.close()
 
 
     def plot(self,
@@ -300,18 +311,20 @@ def __check_and_run(self,
              heatmap=True,
              method:str=None,
              metric:str=None,
-             section:str='all variables',
+             section:str=None,
              save:bool=True):
         
-        heatmap(method=method,
-                metric=metric,
-                section=section,
-                save=save)
+        if heatmap == True: 
+            self.heatmap(method=method,
+                         metric=metric,
+                         section=section,
+                         save=save)
 
-        dendogram(method=method,
-                  metric=metric,
-                  section=section,
-                  save=save)
+        if dendogram == True:
+            self.dendogram(method=method,
+                           metric=metric,
+                           section=section,
+                           save=save)
 
 
 ###############################################################################
