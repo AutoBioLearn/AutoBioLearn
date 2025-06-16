@@ -7,7 +7,7 @@ from AutoBioLearn import AutoBioLearn
 from decorators.DatasetDecorators import apply_per_grouping
 from helpers import ModelHelper, XAIHelper
 
-class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
+class Supervised(AutoBioLearn,ABC):
 
     def __init__(self) -> None:
         super().__init__()
@@ -120,7 +120,7 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
 
     def perform_shap_analysis(self,**kwargs):
         """
-        kwargs use a list to filter by key models to analisys, where each key receives a list of values that will be filtered 
+        kwargs use a list to filter by key models to analysis, where each key receives a list of values that will be filtered 
         kwargs params: time, validation, model_name, fold.
         Eg.: fold = [1,2,3]
         """
@@ -129,14 +129,14 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
         for key, value in kwargs.items():
             models_explained = filter(lambda x: x[key] in value, models_explained)      
         
-        self.__SHAP_analisys = []
+        self.__SHAP_analysis = []
 
         x : pd.DataFrame = None
         if not self.data_processor.dataset.get_has_many_header():
             x = self.data_processor.dataset.get_X()
 
         def explain_current_model(model_to_explain, x):
-            shap_model_analisys = {"time":model_to_explain["time"],
+            shap_model_analysis = {"time":model_to_explain["time"],
                                         "validation":model_to_explain["validation"],
                                         "fold":model_to_explain["fold"],
                                         "model_name":model_to_explain["model_name"],
@@ -144,7 +144,7 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
                                     }
 
             if "section" in model_to_explain:                
-                shap_model_analisys["section"] = model_to_explain["section"]
+                shap_model_analysis["section"] = model_to_explain["section"]
                 x = self.data_processor.dataset.get_X(model_to_explain["section"])
 
             x_to_consolidated = x.iloc[model_to_explain["x_test_index"]]
@@ -162,14 +162,14 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
             shap_obj    = explainer(x)
 
             expected_value = explainer.expected_value
-            shap_model_analisys["shap_obj"]= shap_obj
-            shap_model_analisys["shap_values"]= shap_values
-            shap_model_analisys["expected_value"]=expected_value
-            shap_model_analisys["shap_obj_consolidated"]= shap_obj_consolidated
-            shap_model_analisys["shap_values_consolidated"]= shap_values_consolidated
-            shap_model_analisys["expected_value_consolidated"]=expected_value_consolidated
+            shap_model_analysis["shap_obj"]= shap_obj
+            shap_model_analysis["shap_values"]= shap_values
+            shap_model_analysis["expected_value"]=expected_value
+            shap_model_analysis["shap_obj_consolidated"]= shap_obj_consolidated
+            shap_model_analysis["shap_values_consolidated"]= shap_values_consolidated
+            shap_model_analysis["expected_value_consolidated"]=expected_value_consolidated
 
-            return shap_model_analisys
+            return shap_model_analysis
 
 
         with ThreadPoolExecutor() as executor:
@@ -177,8 +177,8 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
 
             for future in as_completed(future_to_model):               
                 try:                   
-                    shap_model_analisys = future.result()
-                    self.__SHAP_analisys.append(shap_model_analisys)
+                    shap_model_analysis = future.result()
+                    self.__SHAP_analysis.append(shap_model_analysis)
                 except Exception as e:
                    print(e)
                    pass                  
@@ -187,12 +187,12 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
     def plot_shap_analysis(self,register=None,graph_type_global="summary",graph_type_local="force",show_all_features =True,class_index: int =0,**kwargs):
         """
         class_index works only lightgbm models, class_index is max value the number of classes in dataset -1.(Eg.: total class = 3, class_index_max=2)
-        kwargs use a list to filter by key models to analisys, where each key receives a list of values that will be filtered 
+        kwargs use a list to filter by key models to analysis, where each key receives a list of values that will be filtered 
         kwargs params: time, validation, model_name, fold.
         Eg.: fold = [1,2,3]
         """       
 
-        models_explained = self.__SHAP_analisys.copy()
+        models_explained = self.__SHAP_analysis.copy()
 
         kwargs_filtered_models = {key: value for  key, value in kwargs.items() if key not in "graph_params"}
 
@@ -231,12 +231,12 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
     def plot_shap_analysis_consolidated(self,graph_type="summary",show_all_features =True,class_index=0,**kwargs):
         """
         class_index works only lightgbm models, class_index is max value the number of classes in dataset -1.(Eg.: total class = 3, class_index_max=2)
-        kwargs use a list to filter by key models to analisys, where each key receives a list of values that will be filtered 
+        kwargs use a list to filter by key models to analysis, where each key receives a list of values that will be filtered 
         kwargs params: time, validation, model_name, fold.
         Eg.: fold = [1,2,3]
         """       
 
-        models_explained = self.__SHAP_analisys.copy()
+        models_explained = self.__SHAP_analysis.copy()
 
         kwargs_filtered_models = {key: value for  key, value in kwargs.items() if key not in "graph_params"}
 

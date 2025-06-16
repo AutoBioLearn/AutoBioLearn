@@ -1,12 +1,12 @@
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from AutoBioLearn import AutoBioLearn
 
 from sklearn.metrics import silhouette_score
 from sklearn.metrics import calinski_harabasz_score
 from sklearn.metrics import davies_bouldin_score
 
-class AutoBioLearnUnsupervisedLearning(AutoBioLearn,ABC):
+class Unsupervised(AutoBioLearn, ABC):
 
     def __init__(self):
         super().__init__()
@@ -43,13 +43,3 @@ class AutoBioLearnUnsupervisedLearning(AutoBioLearn,ABC):
                    'calinski_harabasz':   (self.calinski_harabasz,              {}),
                    'davies_bouldin':      (self.davies_bouldin,                 {})}
         return options[key]
-
-
-    @abstractmethod
-    def run(self):
-        pass
-
-
-    @abstractmethod
-    def plot(self):
-        pass

@@ -11,7 +11,7 @@ class AutoBioLearn(ABC):
 
     def load_dataset(self, data_processor: DataProcessor):
         if not hasattr(self, 'data_processor'):
-            self.data_processor = data_processor  
+            self.data_processor = data_processor
 
     def load_dataset_by_file(self, file_path: str,target: str,delimiter: str = None, header_size:int=1):
         dataset= DatasetByFile(file_path=file_path,target=target,delimiter=delimiter, header_size= header_size)
@@ -84,12 +84,12 @@ class AutoBioLearn(ABC):
         self.data_processor.dataset.remove_duplicates(section= section)
     
     @requires_dataset    
-    def drop_section(self, sections: list[str]):      
+    def drop_section(self, sections: list[str]=[]):      
         self.data_processor.dataset.drop_section(sections)
 
     @requires_dataset    
-    def standardize(self, sections: list[str]):      
-        self.data_processor.dataset.drop_section(sections)
+    def standardize(self, sections:None):      
+        self.data_processor.standardize(sections)
 
     @requires_dataset
     def encode_datetime(self, cols:list[str] = [], cols_levels= 0, parallel: bool = False):
@@ -124,6 +124,14 @@ class AutoBioLearn(ABC):
     
     @abstractmethod
     def _calculate_metrics(self):
+        return
+
+    @abstractmethod
+    def run(self):
+        return
+
+    @abstractmethod
+    def plot(self):
         return
 
 #region Deprecated

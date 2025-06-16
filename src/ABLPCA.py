@@ -1,16 +1,16 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA as sklPCA
 import pandas as pd
 import numpy as np
 
 from factor_analyzer.factor_analyzer import calculate_kmo
 from factor_analyzer.factor_analyzer import calculate_bartlett_sphericity
 
-from AutoBioLearn import AutoBioLearn
+from ABLUnsupervised import Unsupervised
 from decorators import requires_dataset
 
-class AutoBioLearnPCA(AutoBioLearn):
+class PCA(Unsupervised):
     
     def __init__(self) -> None:
         super().__init__()
@@ -24,10 +24,10 @@ class AutoBioLearnPCA(AutoBioLearn):
         y = self.data_processor.dataset.get_Y(section, recode=False)
         
         if n_components is None:
-            self.pca = PCA()
+            self.pca = sklPCA()
             n_components = min(df.shape)
         else:
-            self.pca = PCA(n_components=n_components)
+            self.pca = sklPCA(n_components=n_components)
         self.scores = self.pca.fit_transform(df)
         
         components_cols = [f'PC{i}' for i in range(1, n_components+1)]

@@ -9,11 +9,11 @@ import scipy
 import scipy.cluster.hierarchy as sch
 from scipy.cluster.hierarchy import fcluster
 
-from AutoBioLearnUnsupervisedLearning import AutoBioLearnUnsupervisedLearning
+from ABLUnsupervised import Unsupervised
 from decorators import requires_dataset
 from helpers import ModelHelper
 
-class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
+class Hierarchical(Unsupervised):
     
     def __init__(self) -> None:
         super().__init__()
@@ -329,7 +329,7 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
 
 ###############################################################################
 
-class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
+class Partitional(Unsupervised):
     
     def __init__(self) -> None:
         super().__init__()
