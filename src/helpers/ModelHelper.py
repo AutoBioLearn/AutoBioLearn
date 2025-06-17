@@ -3,7 +3,7 @@ from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC, SVR
-from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold,LeaveOneOut, StratifiedShuffleSplit, train_test_split
+from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold,LeaveOneOut, StratifiedShuffleSplit
 from xgboost import XGBClassifier,XGBRegressor
 
 from sklearn.cluster import KMeans, SpectralClustering, Birch
@@ -23,11 +23,7 @@ class ModelHelper(object):
     @staticmethod
     def const_lightboost()-> str: 
         return "lightboost"
-    
-    @staticmethod
-    def const_xgboost()-> str: 
-        return "xgboost"
-    
+
     @staticmethod
     def const_random_forest()-> str: 
         return "random_forest"

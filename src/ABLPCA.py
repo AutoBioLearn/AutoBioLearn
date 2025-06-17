@@ -208,8 +208,8 @@ class PCA(Unsupervised):
                         palette=cmap,
                         ax=axes,
                         legend=legend)
-        plt.xlabel(f'PC1 (explained variance: {PC1_var}')
-        plt.ylabel(f'PC2 (explained variance: {PC2_var}')
+        plt.xlabel(f'PC1 (explained variance: {PC1_var}%)')
+        plt.ylabel(f'PC2 (explained variance: {PC2_var}%)')
         
         # Plot loadings vectors (arrows)
         if vectors == True:
@@ -228,7 +228,7 @@ class PCA(Unsupervised):
                 plt.text(loadings[i, 0]*3.2,
                          loadings[i, 1]*3.2,
                          feature,
-                         size=5,
+                         size=10,
                          ha='center',
                          va='center')
 

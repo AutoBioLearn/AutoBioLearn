@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore')
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
@@ -81,7 +84,7 @@ class Hierarchical(Unsupervised):
                 metrics = {key : self._metric_options(key) for key in metrics}
                 for met, (function, kargs) in metrics.items():
                     print(f'{met} = {function(yhat, **kargs)}')
-                self._cophenetic_corr(model, X)
+                self._cophenetic_corr(model, section=section)
 
 
     def execute_models(self,
@@ -141,7 +144,7 @@ class Hierarchical(Unsupervised):
 
 
     def evaluate_models(self,
-                        criterion:str='cophenetic',
+                        criterion:str='silhouette_euclidean',
                         metrics:list[str]=['cophenetic',
                                            'silhouette_euclidean', 
                                            'calinski_harabasz',
@@ -151,6 +154,9 @@ class Hierarchical(Unsupervised):
         self._calculate_metrics(metrics)
 
         print(f'Models will be evaluated by {criterion} \n')
+        if criterion == 'cophenetic':
+            print('Warning: cophenetic is independent of the number of clusters')
+            print('all rows of the output column will be the same.')
         subset = self.metrics.xs(criterion, level=3, axis=1)
         subset = subset.xs(section, level=0, axis=1)
 
@@ -168,7 +174,8 @@ class Hierarchical(Unsupervised):
                                      'n_clusters':a[0][0],
                                      'section':section}
                 print(self._best_params)
-                self.run(**self._best_params)
+                print('Running final model:')
+                self.run(**self._best_params, print_met=True)
 
 
     def __check_and_run(self,
@@ -353,7 +360,11 @@ class Partitional(Unsupervised):
                 X = self.data_processor.dataset.get_X()
 
             model = ModelHelper.get_model(model, "clustering")
-            model = model(n_clusters=nclusters)
+            try: 
+                model = model(n_clusters=nclusters)
+            except TypeError:
+                model = model(n_components=nclusters)
+
             try:
                 model.fit(X)
                 yhat = model.predict(X)
@@ -363,6 +374,7 @@ class Partitional(Unsupervised):
             self._current_model = {'results' : yhat,
                                    'params'  : (section, model, nclusters)}
             
+            print(f"Executed {model} with {nclusters}")
             if print_met == True:
                 metrics = {key : self._metric_options(key) for key in metrics}
                 for met, (function, kargs) in metrics.items():
@@ -450,7 +462,8 @@ class Partitional(Unsupervised):
                 self._best_params = {'model':a[1],
                                      'nclusters':a[0],
                                      'section':section}
-                self.run(**self._best_params)
+                print('Running final model:')
+                self.run(**self._best_params, print_met=True)
 
 
     def plot(self,
@@ -474,7 +487,7 @@ class Partitional(Unsupervised):
             X = self.data_processor.dataset.get_X()
 
         clusters = set(yhat)
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(8, 8))
         
         # create scatter plot for samples from each cluster
         for cluster in clusters:
@@ -488,8 +501,9 @@ class Partitional(Unsupervised):
         ax.set_xlabel(x_axis)
         ax.set_ylabel(y_axis)
 
-        plt.title(f'Section: {title[0]}, {title[1]}')
-        fig.savefig(f'sec_{title[0]}-{title[1]}-{title[2]}-{x_axis}-{y_axis}.png')
+        plt.title(f'{title[0]}, {title[1]}')
+        fig.savefig(f'sec_{title[0]}-{title[1]}-{title[2]}-{x_axis}-{y_axis}.png',
+                    bbox_inches = 'tight')
 
         plt.close(fig)
 
