@@ -1,12 +1,12 @@
 
 from abc import ABC, abstractmethod
-from AutoBioLearn import AutoBioLearn
+from AutoBioLearn.AutoBioLearnBase import AutoBioLearnBase
 
 from sklearn.metrics import silhouette_score
 from sklearn.metrics import calinski_harabasz_score
 from sklearn.metrics import davies_bouldin_score
 
-class AutoBioLearnUnsupervisedLearning(AutoBioLearn,ABC):
+class AutoBioLearnUnsupervisedLearning(AutoBioLearnBase,ABC):
 
     def __init__(self):
         super().__init__()

@@ -20,7 +20,7 @@ from sklearn.impute import KNNImputer, SimpleImputer
 import seaborn as sns
 class Dataset:
     
-    def __init__(self, original_data: DataFrame, target: str, verbose= False):        
+    def __init__(self, original_data: DataFrame, target: str = None, verbose= False):        
       
         DatasetHelper.normalize_columns_name(original_data)
 
@@ -294,6 +294,8 @@ class Dataset:
         else:   
             return self._get_Y(self._data,self.__target, recode)
 
+    def get_target_name(self):
+        return self.__target
 
     def __impute_cols_na(self, df ,method="knn", n_neighbors=5):
         if method == "knn":

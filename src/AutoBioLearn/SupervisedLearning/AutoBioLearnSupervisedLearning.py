@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import override
 from typing_extensions import deprecated
 import pandas as pd
 from matplotlib import pyplot as plt
-from AutoBioLearn import AutoBioLearn
+from AutoBioLearn.AutoBioLearnBase import AutoBioLearnBase
+from data_treatment import DataProcessor
 from decorators.DatasetDecorators import apply_per_grouping
 from helpers import ModelHelper, XAIHelper
 
-class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
+class AutoBioLearnSupervisedLearning(AutoBioLearnBase,ABC):
 
     def __init__(self) -> None:
         super().__init__()
@@ -19,6 +21,24 @@ class AutoBioLearnSupervisedLearning(AutoBioLearn,ABC):
             'num_folds': 0,
             'train_size': 70
         }  
+
+    @override
+    def load_dataset(self, data_processor: DataProcessor):
+        if data_processor.dataset.get_target_name() is None:
+            raise ValueError("Parameter 'target' is obrigatory.")
+        super().load_dataset(data_processor)
+
+    @override
+    def load_dataset_by_file(self, file_path: str,target: str=None,delimiter: str = None, header_size:int=1):
+        if target is None:
+            raise ValueError("Parameter 'target' is obrigatory.")
+        super().load_dataset_by_file(file_path,target,delimiter,header_size)
+
+    @override
+    def load_dataset_by_web(self, url: str,target: str=None, header_size:int=1):
+        if target is None:
+            raise ValueError("Parameter 'target' is obrigatory.")
+        super().load_dataset_by_web(url,target,header_size)  
 
     def set_validations(self, validations:list[str]=["split"], params ={}):
         self._validations_execution= {}     

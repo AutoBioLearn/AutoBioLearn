@@ -4,7 +4,8 @@ from typing_extensions import deprecated
 from data_treatment import DataProcessor, DatasetByFile, DatasetByWeb
 
 from decorators import apply_per_grouping, requires_dataset
-class AutoBioLearn(ABC):
+
+class AutoBioLearnBase(ABC):
 
     def __init__(self) -> None:
         self._models_executed = []
@@ -13,12 +14,12 @@ class AutoBioLearn(ABC):
         if not hasattr(self, 'data_processor'):
             self.data_processor = data_processor  
 
-    def load_dataset_by_file(self, file_path: str,target: str,delimiter: str = None, header_size:int=1):
+    def load_dataset_by_file(self, file_path: str,target: str=None,delimiter: str = None, header_size:int=1):
         dataset= DatasetByFile(file_path=file_path,target=target,delimiter=delimiter, header_size= header_size)
         data_processor = DataProcessor(dataset)
         self.load_dataset(data_processor)
 
-    def load_dataset_by_web(self, url: str,target: str, header_size:int=1):
+    def load_dataset_by_web(self, url: str,target: str=None, header_size:int=1):
         dataset= DatasetByWeb(url= url,target=target, header_size= header_size)
         data_processor = DataProcessor(dataset)
         self.load_dataset(data_processor)  
@@ -89,7 +90,7 @@ class AutoBioLearn(ABC):
 
     @requires_dataset    
     def standardize(self, sections: list[str]):      
-        self.data_processor.dataset.drop_section(sections)
+        self.data_processor.dataset.standardize(sections)
 
     @requires_dataset
     def encode_datetime(self, cols:list[str] = [], cols_levels= 0, parallel: bool = False):

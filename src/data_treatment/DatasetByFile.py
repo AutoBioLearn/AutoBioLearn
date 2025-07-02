@@ -4,7 +4,7 @@ from pandas import DataFrame
 from data_treatment.Dataset import Dataset
 
 class DatasetByFile(Dataset):
-    def __init__(self, file_path:str, target: str, delimiter: None, verbose=False, header_size=1):
+    def __init__(self, file_path:str, target: str=None, delimiter: str = None, verbose=False, header_size=1):
         df: DataFrame
 
         header = [i for i in range(header_size)]
