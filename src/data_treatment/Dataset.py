@@ -263,7 +263,7 @@ class Dataset:
             std_array = ct.fit_transform(self._sections[section])
             self._sections[section][numeric] = std_array
 
-    def get_target_name(self):
+    def get_Y_name(self):
         return self.__target
 
     def get_X(self, section: str= None)->DataFrame:
@@ -293,8 +293,8 @@ class Dataset:
             return self._get_Y(self._sections[section],self.__target, recode)
         else:   
             return self._get_Y(self._data,self.__target, recode)
-
-    def get_target_name(self):
+    
+    def get_Y_name(self, section: str= None):
         return self.__target
 
     def __impute_cols_na(self, df ,method="knn", n_neighbors=5):
@@ -366,12 +366,12 @@ class Dataset:
     def plot_pairplot(self, cols:list[str] = None, height=2.5,section:str = None):
         
         if section is not None:
-            df = self._sections[section]
+            df = pd.concat([self.get_X(section), self.get_Y(section)], axis=1)
         else:
             df = self._data
 
         if cols is not None and len(cols) > 0:
             df = df[cols+[self.__target]]
         
-        sns.pairplot(df, height=height, hue=self.__target, palette='coolwarm')
+        sns.pairplot(df, height=height, hue=self.get_Y_name(section), palette='coolwarm')
         #sns.pairplot(df, height=height, palette='tab10',)

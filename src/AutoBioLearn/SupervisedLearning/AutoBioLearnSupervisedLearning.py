@@ -24,8 +24,13 @@ class AutoBioLearnSupervisedLearning(AutoBioLearnBase,ABC):
 
     @override
     def load_dataset(self, data_processor: DataProcessor):
-        if data_processor.dataset.get_target_name() is None:
-            raise ValueError("Parameter 'target' is obrigatory.")
+        if data_processor.dataset.get_has_many_header():
+            for section in data_processor.dataset.get_sections():
+                if data_processor.dataset.get_Y_name(section) is None:
+                    raise ValueError("Parameter 'target' is obrigatory.")
+        else:
+            if data_processor.dataset.get_Y_name() is None:
+                raise ValueError("Parameter 'target' is obrigatory.")
         super().load_dataset(data_processor)
 
     @override

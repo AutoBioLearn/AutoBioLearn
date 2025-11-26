@@ -10,6 +10,7 @@ class DatasetCustomAnalysis(Dataset):
         self._has_many_header = len(self._sections_name) > 0
         self.__groups = groups
     
+    # testar recuperar as colunas df[[lista_colunas]] ex.: https://pandas.pydata.org/docs/getting_started/intro_tutorials/03_subset_data.html
     def get_X(self, section:str= None)->DataFrame:
         cols_names =self.__groups[section]["x_cols_names"]
        
@@ -29,6 +30,9 @@ class DatasetCustomAnalysis(Dataset):
     def get_Y(self, section:str = None)-> DataFrame:
         return self._get_Y(self._data,self.__groups[section]["y_col_name"])
     
+    def get_Y_name(self, section: str= None):
+        return self.__groups[section]["y_col_name"]
+
     def drop_section(self,sections: list[str]):
         for section in sections:
             del self.__groups[section]
