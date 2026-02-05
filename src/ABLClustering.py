@@ -283,25 +283,39 @@ class Hierarchical(Unsupervised):
                                                           nclust=n_clusters,
                                                           section=section)
 
-        X = self.data_processor.dataset.get_X(section)
+        z = self._current_model['object']
         labels = self._current_model['results']
-        clusters = set(labels)
-        palette = sns.color_palette("husl", len(clusters)).as_hex()
-        clust2color = dict(zip(clusters, palette))
-        index2color = pd.Series(labels, index=X.index).replace(clust2color)
+        clusters = len(set(labels))
+        
+        if clusters > 1:
+            nobs = self.data_processor.dataset.get_X(section).shape[0]
+            unique_distances = np.unique(z[:, 2])
+            col_thresh = 0
+            for d in sorted(unique_distances, reverse=True):
+                clusters_at_d = len(set(fcluster(z, d, criterion='distance')))
+                if clusters_at_d == clusters:
+                    col_thresh = d
+                    break
+            if clusters == 2 and len(set(fcluster(z, col_thresh, criterion='distance'))) == 1:
+                sorted_distances = np.sort(z[:, 2])
+                if len(sorted_distances) >= 2:
+                    col_thresh = sorted_distances[-2] + 1e-6
+                else: 
+                    col_thresh = 0 
+            elif clusters > 1: 
+                 if col_thresh == 0 and nobs > clusters:
+                     col_thresh = z[nobs - clusters, 2] + 1e-6
+        else:
+            col_thresh = 0
 
         fig, ax = plt.subplots(figsize=(8, 12))
         sch.dendrogram(self._current_model['object'],
                        labels = self.data_processor.dataset.get_X(section).index,
                        ax=ax,
-                       orientation='left')
-        
-        # Color the labels
-        for label in ax.get_yticklabels():
-            leaf_id = label.get_text()
-            color = index2color.get(leaf_id, "#808080")
-            label.set_color(color)
-        
+                       orientation='left',
+                       color_threshold=col_thresh, 
+                       above_threshold_color='grey')
+
         plt.title(f'Dendrogram - {method}', fontsize=16)
         plt.xlabel(f'{metric}', fontsize=16)
         
