@@ -40,6 +40,8 @@ class Classification(Supervised):
             y = self.data_processor.dataset.get_Y(section)
         except:
             y = self.data_processor.dataset.get_Y()
+            if y is None:
+                raise ValueError('Target not assigned when file was loaded.')
         
         params_method = 'quick'
 

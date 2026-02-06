@@ -201,6 +201,7 @@ class PCA(Unsupervised):
         PC2_var= round(self.pca.explained_variance_ratio_[1] * 100, 2)
 
         fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(7, 7), dpi = 600)
+
         sns.scatterplot(data=self.coordinates,
                         x='PC1',
                         y='PC2',

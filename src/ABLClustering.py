@@ -1,3 +1,4 @@
+
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -48,7 +49,8 @@ class Hierarchical(Unsupervised):
             n_clusters:int=3,
             section:str=None,
             metric:str='euclidean',
-            print_met=False):
+            print_met=False,
+            save_clusters=True):
             """
             method = 'single', 'average', 'complete', 'ward', 'centroid', etc
             metric = 'braycurtis', 'canberra', 'chebyshev', 'cityblock', 
@@ -83,8 +85,15 @@ class Hierarchical(Unsupervised):
                            'davies_bouldin']
                 metrics = {key : self._metric_options(key) for key in metrics}
                 for met, (function, kargs) in metrics.items():
-                    print(f'{met} = {function(yhat, **kargs)}')
+                    print(f'\n{met} = {function(yhat, **kargs)} \n')
                 self._cophenetic_corr(model, section=section)
+
+                print('\nNumber of samples in each cluster:')
+                print('\nCluster number \t Number of samples')
+                print(pd.Series(yhat).value_counts())
+
+            if save_clusters:
+                pd.Series(yhat).to_csv('clusters_assingment.txt', sep='\t')
 
 
     def execute_models(self,
@@ -103,7 +112,11 @@ class Hierarchical(Unsupervised):
                     self._models_executed[col_key] = {}
                 
                 for k in range(cluster_range[0], cluster_range[1] + 1):
-                    self.run(method=m, n_clusters=k, section=section, metric=d)
+                    self.run(method=m,
+                             n_clusters=k,
+                             section=section,
+                             metric=d,
+                             save_clusters=False)
                     self._models_executed[col_key][k] = self._current_model
 
 
@@ -123,7 +136,7 @@ class Hierarchical(Unsupervised):
                 for k, v in clusters.items():
                     if len(set(v['results'])) <= 1:
                         l[k] = np.nan
-                        print(f"{s}, {m}, {d} with only 1 cluster. {met} set to NaN.")
+                        print(f"\n{s}, {m}, {d} with only 1 cluster. {met} set to NaN.")
                     else:
                         l[k] = function(v['results'], **kargs)
                 scores[(s, m, d, met)] = l
@@ -155,8 +168,8 @@ class Hierarchical(Unsupervised):
 
         print(f'Models will be evaluated by {criterion} \n')
         if criterion == 'cophenetic':
-            print('Warning: cophenetic is independent of the number of clusters')
-            print('all rows of the output column will be the same.')
+            print('\nWarning: cophenetic is independent of the number of clusters')
+            print('\nall rows of the output column will be the same.')
         subset = self.metrics.xs(criterion, level=3, axis=1)
         subset = subset.xs(section, level=0, axis=1)
 
@@ -165,7 +178,7 @@ class Hierarchical(Unsupervised):
         for m, func in {'Max': (lambda x: x.idxmax()),
                         'Min': (lambda x: x.idxmin())}.items():
             a = func(stack)
-            print(f"{m} value:{a[0][0]} clusters, metric {a[0][1]}, \
+            print(f"\n{m} value:{a[0][0]} clusters, metric {a[0][1]}, \
                   {a.index[0]} linkage")
             if (m == 'Max' and criterion != 'davies_bouldin') \
                 or (m == 'Min' and criterion == 'davies_bouldin'):
@@ -174,8 +187,10 @@ class Hierarchical(Unsupervised):
                                      'n_clusters':a[0][0],
                                      'section':section}
                 print(self._best_params)
-                print('Running final model:')
-                self.run(**self._best_params, print_met=True)
+                print('\n\nRunning final model:')
+                self.run(**self._best_params,
+                         print_met=True,
+                         save_clusters=True)
 
 
     def __check_and_run(self,
@@ -195,7 +210,8 @@ class Hierarchical(Unsupervised):
             self.run(method=method,
                      metric=metric,
                      n_clusters=nclust,
-                     section=section)
+                     section=section,
+                     save_clusters=False)
             return method, metric, nclust
     
         elif cparams is not None:
@@ -208,7 +224,8 @@ class Hierarchical(Unsupervised):
             self.run(method=method,
                      metric=metric,
                      n_clusters=nclust,
-                     section=section)
+                     section=section,
+                     save_clusters=False)
             return method, metric, nclust
 
         else:
@@ -366,7 +383,8 @@ class Partitional(Unsupervised):
                                'manhattan',
                                'calinski_harabasz',
                                'davies_bouldin'],
-            print_met=False):
+            print_met=False,
+            save_clusters=True):
 
             try:
                 X = self.data_processor.dataset.get_X(section)
@@ -389,11 +407,18 @@ class Partitional(Unsupervised):
                                    'params'  : (section, model, nclusters)}
             
             print(f"Executed {model} with {nclusters}")
+
             if print_met == True:
                 metrics = {key : self._metric_options(key) for key in metrics}
                 for met, (function, kargs) in metrics.items():
-                    print(f'{met} = {function(yhat, **kargs)}')
-                    
+                    print(f'\n{met} = {function(yhat, **kargs)}')
+
+                print('\nNumber of samples in each cluster:')
+                print('\nCluster number \t Number of samples')
+                print(pd.Series(yhat).value_counts())
+
+            if save_clusters:
+                pd.Series(yhat).to_csv('clusters_assingment.txt', sep='\t')
 
     def execute_models(self,
                        models:list[str]=['kmeans', 'spectral', 'birch'],
@@ -406,7 +431,7 @@ class Partitional(Unsupervised):
         for name in unique_models:
             models_execution[name] = {}
             for i in range(cluster_range[0], cluster_range[1]+1):
-                self.run(name, i, section)
+                self.run(name, i, section, save_clusters=False)
                 models_execution[name][i] = self._current_model['results']
 
         section_name = section if section != None else 'all variables'
@@ -456,7 +481,7 @@ class Partitional(Unsupervised):
         subset = subset.xs(section, level=0, axis=1)
         
         if subset.isnull().all().all():
-            print('No available results for this criterion and section')
+            print('\n\nNo available results for this criterion and section')
             return
 
         if figure == True:
@@ -464,20 +489,23 @@ class Partitional(Unsupervised):
             sns.heatmap(subset, ax=ax)
             plt.title(f'{criterion}', fontsize=16)
             fig.savefig(f'{criterion}_clusters_methods.png')
-        
-        print(subset)        
+
+        print('\n\n')
+        print(subset)
         stack = subset.stack()
         for m, func in {'Max': (lambda x: x.idxmax()),
                         'Min': (lambda x: x.idxmin())}.items():
             a = func(stack)
-            print(f"{m} value:{a[0]} clusters, {a[1]}")
+            print(f"\n{m} value:{a[0]} clusters, {a[1]}")
             if (m == 'Max' and criterion != 'davies_bouldin') \
                 or (m == 'Min' and criterion == 'davies_bouldin'):
                 self._best_params = {'model':a[1],
                                      'nclusters':a[0],
                                      'section':section}
-                print('Running final model:')
-                self.run(**self._best_params, print_met=True)
+                print('\n\nRunning final model:')
+                self.run(**self._best_params,
+                         print_met=True,
+                         save_clusters=True)
 
 
     def plot(self,
@@ -495,11 +523,6 @@ class Partitional(Unsupervised):
         if x_axis not in X.columns or y_axis not in X.columns:
             raise ValueError(f"{x_axis} and/or {y_axis} not in dataset.")
 
-        try:
-            X = self.data_processor.dataset.get_X(section)
-        except KeyError:
-            X = self.data_processor.dataset.get_X()
-
         clusters = set(yhat)
         fig, ax = plt.subplots(figsize=(8, 8))
         
@@ -512,10 +535,12 @@ class Partitional(Unsupervised):
                 label=f'Cluster {cluster}'
             )
         
-        ax.set_xlabel(x_axis)
-        ax.set_ylabel(y_axis)
+        ax.set_xlabel(x_axis, fontsize='large')
+        ax.set_ylabel(y_axis,  fontsize='large')
+        
+        ax.legend()
 
-        plt.title(f'{title[0]}, {title[1]}')
+        plt.title(f'{title[0]}, {title[1]}',  fontsize='xx-large')
         fig.savefig(f'sec_{title[0]}-{title[1]}-{title[2]}-{x_axis}-{y_axis}.png',
                     bbox_inches = 'tight')
 

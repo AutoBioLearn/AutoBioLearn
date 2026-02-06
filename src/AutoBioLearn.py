@@ -13,13 +13,26 @@ class AutoBioLearn(ABC):
         if not hasattr(self, 'data_processor'):
             self.data_processor = data_processor
 
-    def load_dataset_by_file(self, file_path: str,target: str,delimiter: str = None, header_size:int=1):
-        dataset= DatasetByFile(file_path=file_path,target=target,delimiter=delimiter, header_size= header_size)
+    def load_dataset_by_file(self,
+                             file_path: str,
+                             delimiter: str = None,
+                             target: str|None=None,
+                             header_size:int=1):
+
+        dataset= DatasetByFile(file_path=file_path,
+                               target=target,
+                               delimiter=delimiter,
+                               header_size= header_size)
         data_processor = DataProcessor(dataset)
         self.load_dataset(data_processor)
 
-    def load_dataset_by_web(self, url: str,target: str, header_size:int=1):
-        dataset= DatasetByWeb(url= url,target=target, header_size= header_size)
+    def load_dataset_by_web(self,
+                            url: str,
+                            target: str|None=None,
+                            header_size:int=1):
+        dataset= DatasetByWeb(url= url,
+                              target=target,
+                              header_size= header_size)
         data_processor = DataProcessor(dataset)
         self.load_dataset(data_processor)  
 

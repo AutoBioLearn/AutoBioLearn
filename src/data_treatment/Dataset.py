@@ -20,7 +20,10 @@ from sklearn.impute import KNNImputer, SimpleImputer
 import seaborn as sns
 class Dataset:
     
-    def __init__(self, original_data: DataFrame, target: str, verbose= False):        
+    def __init__(self,
+                 original_data: DataFrame,
+                 target: str|None= None,
+                 verbose= False):        
       
         DatasetHelper.normalize_columns_name(original_data)
 
@@ -31,16 +34,19 @@ class Dataset:
         self._sections = {}
         self._sections_name = []
 
-        self._set_sections()    
+        self._set_sections()
 
         if verbose:
             print("Details of your Database")    
             #region Data balacing        
 
-            _classes = self._data[self.__target].value_counts(normalize=True) * 100
+            try:
+                _classes = self._data[self.__target].value_counts(normalize=True) * 100
 
-            print("Percent of class:")
-            print(_classes)
+                print("Percent of class:")
+                print(_classes)
+            except KeyError:
+                print('No target assigned.')
 
             #endregion
 
@@ -264,7 +270,11 @@ class Dataset:
             self._sections[section][numeric] = std_array
 
     def get_target_name(self):
-        return self.__target
+        if self.__target:
+            return self.__target
+        else:
+            print('No target assigned.')
+            return
 
     def get_X(self, section: str= None)->DataFrame:
         if section is None and not self._has_many_header:
@@ -274,13 +284,18 @@ class Dataset:
             numeric_cols = [cname for cname in self._sections[section].columns if self._sections[section][cname].dtype in self._typesToX()]
             X = self._sections[section][numeric_cols].copy()
         
-        if self.__target not in numeric_cols:           
-            return X 
+        if self.__target is None:
+            return X
+        elif self.__target not in numeric_cols:
+            return X
         else:
             return X.drop([self.__target],axis=1,inplace=False)
 
     
     def _get_Y(self, df, target, recode=True)->DataFrame:
+        if target is None:
+            print('No target assigned.')
+            return
         if recode == True:
             if df[target].dtype not in self._typesToX():
                 ContentHelper.convert_cols_values(df,[target])
@@ -317,22 +332,23 @@ class Dataset:
             del self._sections[section]
             self._sections_name.remove(section)
 
-    def __find_multiindex(self, col):      
+    def __find_multiindex(self, col):
+        if col is None:
+            return None
         for idx in self._data.columns:
             if col in idx:
                 return idx
-        return None    
+        return None
 
-    def _set_sections(self): 
+    def _set_sections(self):
         if self._has_many_header:
-            mi_target = np.array(self.__find_multiindex(self.__target))        
+            mi_target = self.__find_multiindex(self.__target)
             
             for col in self._data.columns.get_level_values(0).unique():
-                if col in mi_target:
-                    cols_to_filter = self._data.columns[self._data.columns.get_level_values(0) == col].values.tolist()
-                else:
-                    cols_to_filter = self._data.columns[self._data.columns.get_level_values(0) == col].values.tolist()+[mi_target]
-                
+                cols_to_filter = self._data.columns[self._data.columns.get_level_values(0) == col].values.tolist()
+                if mi_target is not None and col not in np.array(mi_target):
+                    cols_to_filter.append(mi_target)
+
                 self._sections[col]=self._data[cols_to_filter].droplevel(0,1)
                 self._sections_name.append(col)
 
@@ -369,7 +385,18 @@ class Dataset:
             df = self._data
 
         if cols is not None and len(cols) > 0:
-            df = df[cols+[self.__target]]
-        
-        sns.pairplot(df, height=height, hue=self.__target, palette='coolwarm')
+            if self.__target:
+                df = df[cols+[self.__target]]
+            else:
+                df = df[cols]
+
+        if self.__target:
+            sns.pairplot(df,
+                         height=height,
+                         hue=self.__target,
+                         palette='coolwarm')
+        else:
+            sns.pairplot(df,
+                         height=height,
+                         palette='coolwarm')
         #sns.pairplot(df, height=height, palette='tab10',)
