@@ -4,9 +4,10 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC, SVR
 from sklearn.model_selection import KFold, ShuffleSplit, StratifiedKFold,LeaveOneOut, StratifiedShuffleSplit
+from sklearn_extra.cluster import KMedoids
 from xgboost import XGBClassifier,XGBRegressor
 
-from sklearn.cluster import KMeans, SpectralClustering, Birch
+from sklearn.cluster import KMeans, SpectralClustering
 from sklearn.mixture import GaussianMixture
 
 
@@ -49,8 +50,8 @@ class ModelHelper(object):
         return "spectral"
     
     @staticmethod
-    def const_birch()-> str: 
-        return "birch"
+    def const_pam()-> str: 
+        return "kmedoids"
     
     @staticmethod  
     def get_model(model, model_type="classifier"):
@@ -77,7 +78,7 @@ class ModelHelper(object):
                         ModelHelper.const_kmeans():      KMeans,
                         ModelHelper.const_gaussianmix(): GaussianMixture,
                         ModelHelper.const_spectral():    SpectralClustering,
-                        ModelHelper.const_birch():       Birch,
+                        ModelHelper.const_pam():         KMedoids,
                     }
         
         if model_type.lower() == 'classifier':

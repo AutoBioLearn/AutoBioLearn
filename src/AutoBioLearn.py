@@ -17,12 +17,14 @@ class AutoBioLearn(ABC):
                              file_path: str,
                              delimiter: str = None,
                              target: str|None=None,
-                             header_size:int=1):
+                             header_size:int=1,
+                             index_col=None):
 
         dataset= DatasetByFile(file_path=file_path,
                                target=target,
                                delimiter=delimiter,
-                               header_size= header_size)
+                               header_size= header_size,
+                               index_col=index_col)
         data_processor = DataProcessor(dataset)
         self.load_dataset(data_processor)
 

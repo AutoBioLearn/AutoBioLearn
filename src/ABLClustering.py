@@ -93,7 +93,7 @@ class Hierarchical(Unsupervised):
                 print(pd.Series(yhat).value_counts())
 
             if save_clusters:
-                pd.Series(yhat).to_csv('clusters_assingment.txt', sep='\t')
+                pd.Series(yhat, name='predicted clusters').to_csv('clusters_assignment.txt', sep='\t')
 
 
     def execute_models(self,
@@ -367,7 +367,7 @@ class Hierarchical(Unsupervised):
 
 ###############################################################################
 
-class Partitional(Unsupervised):
+class NonHierarchical(Unsupervised):
     
     def __init__(self) -> None:
         super().__init__()
@@ -418,10 +418,13 @@ class Partitional(Unsupervised):
                 print(pd.Series(yhat).value_counts())
 
             if save_clusters:
-                pd.Series(yhat).to_csv('clusters_assingment.txt', sep='\t')
+                pd.Series(yhat, name='predicted clusters').to_csv('clusters_assignment.txt', sep='\t')
 
     def execute_models(self,
-                       models:list[str]=['kmeans', 'spectral', 'birch'],
+                       models:list[str]=['kmeans', 
+                                         'spectral',
+                                         'kmedoids',
+                                         'gaussian_mixture'],
                        cluster_range:tuple=(2,5),
                        section: str = None):
         
@@ -537,11 +540,16 @@ class Partitional(Unsupervised):
         
         ax.set_xlabel(x_axis, fontsize='large')
         ax.set_ylabel(y_axis,  fontsize='large')
-        
+
+        ax.tick_params(axis='both', labelsize=14)
+
         ax.legend()
 
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
         plt.title(f'{title[0]}, {title[1]}',  fontsize='xx-large')
-        fig.savefig(f'sec_{title[0]}-{title[1]}-{title[2]}-{x_axis}-{y_axis}.png',
+        fig.savefig(f'{title[1]}-{title[2]}-{x_axis}-{y_axis}.png',
                     bbox_inches = 'tight')
 
         plt.close(fig)
