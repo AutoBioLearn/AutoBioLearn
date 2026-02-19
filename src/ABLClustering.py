@@ -75,7 +75,7 @@ class Hierarchical(Unsupervised):
                             criterion='maxclust')
             
             self._current_model = {'results' : yhat,
-                                   'params'  : (section, model, metric, n_clusters),
+                                   'params'  : (section, model, metric, n_clusters, method),
                                    'object'  : model}
 
             if print_met == True:
@@ -178,8 +178,7 @@ class Hierarchical(Unsupervised):
         for m, func in {'Max': (lambda x: x.idxmax()),
                         'Min': (lambda x: x.idxmin())}.items():
             a = func(stack)
-            print(f"\n{m} value:{a[0][0]} clusters, metric {a[0][1]}, \
-                  {a.index[0]} linkage")
+            print(f"\n{m} value:{a[0][0]} clusters, metric {a[0][1]}, {a.index[0]} linkage")
             if (m == 'Max' and criterion != 'davies_bouldin') \
                 or (m == 'Min' and criterion == 'davies_bouldin'):
                 self._best_params = {'metric':a[0][1],
@@ -219,14 +218,22 @@ class Hierarchical(Unsupervised):
             metric = metric if metric is not None else cparams['metric']
             nclust = nclust if nclust is not None else cparams['n_clusters']
             section = section if section is not None else cparams['section']
-    
-            print('Using cached configuration with possible user overrides.')
-            self.run(method=method,
-                     metric=metric,
-                     n_clusters=nclust,
-                     section=section,
-                     save_clusters=False)
-            return method, metric, nclust
+
+            if     method  == self._current_model['params'][4] \
+               and metric  == self._current_model['params'][2] \
+               and nclust  == self._current_model['params'][3] \
+               and section == self._current_model['params'][0]:
+                   print('Model already chached.')
+                   return method, metric, nclust
+
+            else:
+                print('Using cached configuration with possible user overrides.')
+                self.run(method=method,
+                         metric=metric,
+                         n_clusters=nclust,
+                         section=section,
+                         save_clusters=False)
+                return method, metric, nclust
 
         else:
             print('No cached model and incomplete input. Running full evaluation.')
@@ -242,7 +249,7 @@ class Hierarchical(Unsupervised):
                 method:str=None,
                 metric:str=None,
                 n_clusters:int=None,
-                cmap:str='plasma_r',
+                cmap:str='cividis',
                 section:str=None,
                 save:bool=True):
 
@@ -255,29 +262,43 @@ class Hierarchical(Unsupervised):
                                                           section=section)
 
 
-        yhat = yhat = self._current_model['results']
+        yhat = self._current_model['results']
         clusters = set(yhat)
+
         palette = sns.color_palette("husl", len(clusters)).as_hex()
         colours = dict(zip(clusters, palette))
         group = pd.Series(yhat, index=X.index).replace(colours)
 
         # Plot heatmap
         fig = sns.clustermap(X,
-                             row_cluster=False,
+                             row_cluster=True,
+                             col_cluster=True,
                              method=method,
                              metric=metric,
                              z_score=None,
                              standard_scale=None,
                              figsize=(8, 12),
                              row_colors=group,
-                             cmap= cmap)
-        
-        plt.title(f'Dendrogram - {method}', fontsize=16)
-        plt.ylabel(f'{metric}', fontsize=16)
-        
+                             cmap= cmap,
+                             cbar_pos=(1, 0.3, .03, .4))
+
+        fig.ax_heatmap.set_ylabel('')
+
+        fig.ax_col_dendrogram.set_title(f'Dendrogram - {method}',
+                                        fontsize=24)
+
+        fig.ax_cbar.set_ylabel(f'{metric.capitalize()}', fontsize=16)
+
         # Add legend to class
         handles = [mpatches.Patch(color=color, label=label) for label, color in colours.items()]
-        plt.legend(handles=handles, bbox_to_anchor=(1.2, 1), loc='lower left')
+        fig.ax_heatmap.legend(handles=handles, 
+                              bbox_to_anchor=(1.2, 1),
+                              loc='center left',
+                              title='Clusters',
+                              fontsize=16)
+        
+        if len(X) > 50:
+            fig.ax_heatmap.set_yticks([])
         
         # Save it
         if save == True:
@@ -291,7 +312,7 @@ class Hierarchical(Unsupervised):
     def dendogram(self,
                   method:str=None,
                   metric:str=None,
-                  n_clusters:int=2,
+                  n_clusters:int=None,
                   section:str=None,
                   save:bool=True):
 
@@ -305,27 +326,19 @@ class Hierarchical(Unsupervised):
         clusters = len(set(labels))
         
         if clusters > 1:
-            nobs = self.data_processor.dataset.get_X(section).shape[0]
-            unique_distances = np.unique(z[:, 2])
-            col_thresh = 0
-            for d in sorted(unique_distances, reverse=True):
-                clusters_at_d = len(set(fcluster(z, d, criterion='distance')))
-                if clusters_at_d == clusters:
-                    col_thresh = d
-                    break
-            if clusters == 2 and len(set(fcluster(z, col_thresh, criterion='distance'))) == 1:
-                sorted_distances = np.sort(z[:, 2])
-                if len(sorted_distances) >= 2:
-                    col_thresh = sorted_distances[-2] + 1e-6
-                else: 
-                    col_thresh = 0 
-            elif clusters > 1: 
-                 if col_thresh == 0 and nobs > clusters:
-                     col_thresh = z[nobs - clusters, 2] + 1e-6
+            nobs = z.shape[0]
+            col_thresh = z[nobs - clusters, 2] + 1e-10
         else:
             col_thresh = 0
 
         fig, ax = plt.subplots(figsize=(8, 12))
+        
+        yhat = set(self._current_model['results'])
+
+        palette = sns.color_palette("husl", len(yhat)).as_hex()
+        sch.set_link_color_palette(palette)
+        palette = dict(zip(yhat, palette))
+        
         sch.dendrogram(self._current_model['object'],
                        labels = self.data_processor.dataset.get_X(section).index,
                        ax=ax,
@@ -333,9 +346,23 @@ class Hierarchical(Unsupervised):
                        color_threshold=col_thresh, 
                        above_threshold_color='grey')
 
-        plt.title(f'Dendrogram - {method}', fontsize=16)
-        plt.xlabel(f'{metric}', fontsize=16)
-        
+        plt.title(f'Dendrogram - {method}', fontsize=24)
+        plt.xlabel(f'Selected metric:{metric.capitalize()}', fontsize=16)
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        if len(self.data_processor.dataset.get_X(section)) > 100:
+            ax.set_yticks([])
+
+        # Add legend to class
+        handles = [mpatches.Patch(color=color, label=label) for label, color in palette.items()]
+        ax.legend(handles=handles,
+                  bbox_to_anchor=(1.2, 1),
+                  loc='upper left',
+                  title='Clusters',
+                  fontsize=16)
+
         # Save it
         if save == True:
             fig.savefig(f'dendogram_{metric}_{method}_{section}.png')
