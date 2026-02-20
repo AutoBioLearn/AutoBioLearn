@@ -21,7 +21,7 @@ class PCA(Unsupervised):
             section:str=None):
         # Get data
         df = self.data_processor.dataset.get_X(section)
-        y = self.data_processor.dataset.get_Y(section, recode=False)
+        
         
         if n_components is None:
             self.pca = sklPCA()
@@ -34,7 +34,10 @@ class PCA(Unsupervised):
         self.coordinates = pd.DataFrame(self.scores,
                                         index=df.index, 
                                         columns=components_cols)
-        self.coordinates['class'] = y
+
+        y = self.data_processor.dataset.get_Y(section, recode=False)
+        if y is not None:
+            self.coordinates['class'] = y
 
 
     def execute_models():
@@ -86,13 +89,30 @@ class PCA(Unsupervised):
     def cumulative_var(self, thresh, save=True):
 
         var_ratio = np.cumsum(self.pca.explained_variance_ratio_)
+
         fig, ax = plt.subplots()
+        
         sns.lineplot(x=range(1, len(var_ratio)+1),
-                     y=var_ratio,
-                     ax=ax)
-        ax.set_xlabel('Number of Components')
-        ax.set_ylabel('Cumulative Explained Variance')
-        ax.hlines(y=thresh, xmin=0, xmax=len(var_ratio), color='r')
+                     y=var_ratio*100,
+                     ax=ax,
+                     linewidth=2)
+
+        ax.set_xlabel('Number of Components (%)',
+                      size='large')
+        ax.set_ylabel('Cumulative Explained Variance',
+                      size='large')
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        ax.set_title('Preferable number of components',
+                     size='xx-large')
+
+        ax.hlines(y=thresh*100,
+                  xmin=0,
+                  xmax=len(var_ratio),
+                  color='r')
+
         plt.show()
         if save == True:
             fig.savefig('cumulative_variance.png', format='png')
@@ -115,10 +135,19 @@ class PCA(Unsupervised):
         fig, ax = plt.subplots()
         sns.lineplot(x=range(1, len(var)+1),
                      y=var,
-                     ax=ax)
-        ax.set_xlabel('Number of Components')
-        ax.set_ylabel('Explained variance')
-        ax.set_title('Scree plot')
+                     ax=ax,
+                     linewidth=2)
+        
+        ax.set_xlabel('Number of Components',
+                      size='large')
+        ax.set_ylabel('Explained variance',
+                      size='large')
+        ax.set_title('Scree plot',
+                     size='xx-large')
+        
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
         plt.show()
         if save == True:
             fig.savefig('scree.png', format='png')
@@ -191,50 +220,85 @@ class PCA(Unsupervised):
     def plot(self,
              vectors=True,
              cmap:str='muted',
-             legend=False,
              save:bool=True):
-
-        legend = 'brief' if legend == True else False
 
         # PCA plot
         PC1_var= round(self.pca.explained_variance_ratio_[0] * 100, 2)
         PC2_var= round(self.pca.explained_variance_ratio_[1] * 100, 2)
 
-        fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(7, 7), dpi = 600)
+        fig, ax = plt.subplots(figsize=(10, 12),
+                               dpi = 600)
+
+        if self.data_processor.dataset.get_Y() is not None:
+            hue='class'
+            legend = 'brief'
+        else:
+            hue = None
+            legend=False
 
         sns.scatterplot(data=self.coordinates,
                         x='PC1',
                         y='PC2',
-                        hue='class',
+                        hue=hue,
+                        alpha=0.5,
                         palette=cmap,
-                        ax=axes,
+                        ax=ax,
                         legend=legend)
-        plt.xlabel(f'PC1 (explained variance: {PC1_var}%)')
-        plt.ylabel(f'PC2 (explained variance: {PC2_var}%)')
+
+        ax.set_xlabel(f'PC1 (explained variance: {PC1_var}%)',
+                      size='large')
+        ax.set_ylabel(f'PC2 (explained variance: {PC2_var}%)',
+                      size='large')
+
+        ax.set_title('Loading plot',
+                     size='xx-large')
         
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        if self.data_processor.dataset.get_Y() is not None:
+            ax.legend(loc='upper left',
+                      bbox_to_anchor=(1.05, 0.8),
+                      title='Classes')
         # Plot loadings vectors (arrows)
         if vectors == True:
             
             features = self.data_processor.dataset.get_X().columns
             loadings = self.pca.components_.T * np.sqrt(self.pca.explained_variance_)
             
+            # get the scale factor for the vectors
+            ax_lims = min(ax.get_xlim() + ax.get_ylim())
+            ld_lims = loadings.max()
+            scale   = ax_lims / (ld_lims + 0.3)
+
+            legend_vectors = ''
             for i, feature in enumerate(features):
-                plt.arrow(0, 
-                          0, 
-                          loadings[i, 0]*3, 
-                          loadings[i, 1]*3, 
+                ax.annotate(i+1,
+                            (0, 0),
+                            (loadings[i, 0]*scale, loadings[i, 1]*scale),
+                            annotation_clip=False,
+                            ha='center',
+                            va='bottom',
+                            arrowprops={'arrowstyle'    :'<-',
+                                        'mutation_scale':15,
+                                        'linewidth':1,
+                                        'color'         :'k'}
+                            )
+
+                legend_vectors += f'{i+1} - {feature}\n'
+
+        # 2. Adicionar a caixa de texto à direita
+        # transform=ax.transAxes faz com que (1.05, 0.5) seja relativo à área do gráfico
+        ax.text(1.05,
+                0.1,
+                legend_vectors, 
+                transform=ax.transAxes,
+                bbox=dict(boxstyle='round,pad=0.5',
+                          facecolor='white',
                           alpha=0.5,
-                          head_width=0.05
-                          , length_includes_head=True)
-                plt.text(loadings[i, 0]*3.2,
-                         loadings[i, 1]*3.2,
-                         feature,
-                         size=10,
-                         ha='center',
-                         va='center')
+                          edgecolor='gray'))
 
         # Save the figure
+        plt.show()
         if save == True:
             fig.savefig('PCA.png', format='png')
-        plt.show()
-        plt.close(fig)
