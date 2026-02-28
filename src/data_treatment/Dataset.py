@@ -37,10 +37,13 @@ class Dataset:
             print("Details of your Database")    
             #region Data balacing        
 
-            _classes = self._data[self.__target].value_counts(normalize=True) * 100
+            try:
+                _classes = self._data[self.__target].value_counts(normalize=True) * 100
 
-            print("Percent of class:")
-            print(_classes)
+                print("Percent of class:")
+                print(_classes)
+            except KeyError:
+                print('No target assigned.')
 
             #endregion
 
@@ -263,8 +266,12 @@ class Dataset:
             std_array = ct.fit_transform(self._sections[section])
             self._sections[section][numeric] = std_array
 
-    def get_Y_name(self):
-        return self.__target
+    def get_target_name(self):
+        if self.__target:
+            return self.__target
+        else:
+            print('No target assigned.')
+            return
 
     def get_X(self, section: str= None)->DataFrame:
         if section is None and not self._has_many_header:
@@ -274,13 +281,18 @@ class Dataset:
             numeric_cols = [cname for cname in self._sections[section].columns if self._sections[section][cname].dtype in self._typesToX()]
             X = self._sections[section][numeric_cols].copy()
         
-        if self.__target not in numeric_cols:           
-            return X 
+        if self.__target is None:
+            return X
+        elif self.__target not in numeric_cols:
+            return X
         else:
             return X.drop([self.__target],axis=1,inplace=False)
 
     
     def _get_Y(self, df, target, recode=True)->DataFrame:
+        if target is None:
+            print('No target assigned.')
+            return
         if recode == True:
             if df[target].dtype not in self._typesToX():
                 ContentHelper.convert_cols_values(df,[target])
@@ -319,11 +331,13 @@ class Dataset:
             del self._sections[section]
             self._sections_name.remove(section)
 
-    def __find_multiindex(self, col):      
+    def __find_multiindex(self, col):
+        if col is None:
+            return None
         for idx in self._data.columns:
             if col in idx:
                 return idx
-        return None    
+        return None
 
     def _set_sections(self): 
         if self._has_many_header:
@@ -366,12 +380,23 @@ class Dataset:
     def plot_pairplot(self, cols:list[str] = None, height=2.5,section:str = None):
         
         if section is not None:
-            df = pd.concat([self.get_X(section), self.get_Y(section)], axis=1)
+            df = self._sections[section]
         else:
             df = self._data
 
         if cols is not None and len(cols) > 0:
-            df = df[cols+[self.__target]]
-        
-        sns.pairplot(df, height=height, hue=self.get_Y_name(section), palette='coolwarm')
+            if self.__target:
+                df = df[cols+[self.__target]]
+            else:
+                df = df[cols]
+
+        if self.__target:
+            sns.pairplot(df,
+                         height=height,
+                         hue=self.__target,
+                         palette='coolwarm')
+        else:
+            sns.pairplot(df,
+                         height=height,
+                         palette='coolwarm')
         #sns.pairplot(df, height=height, palette='tab10',)
