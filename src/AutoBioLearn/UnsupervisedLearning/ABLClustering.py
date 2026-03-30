@@ -1,3 +1,7 @@
+
+import warnings
+warnings.filterwarnings('ignore')
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
@@ -9,11 +13,11 @@ import scipy
 import scipy.cluster.hierarchy as sch
 from scipy.cluster.hierarchy import fcluster
 
-from .AutoBioLearnUnsupervisedLearning import AutoBioLearnUnsupervisedLearning
+from ABLUnsupervised import Unsupervised
 from decorators import requires_dataset
 from helpers import ModelHelper
 
-class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
+class Hierarchical(Unsupervised):
     
     def __init__(self) -> None:
         super().__init__()
@@ -45,7 +49,8 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
             n_clusters:int=3,
             section:str=None,
             metric:str='euclidean',
-            print_met=False):
+            print_met=False,
+            save_clusters=True):
             """
             method = 'single', 'average', 'complete', 'ward', 'centroid', etc
             metric = 'braycurtis', 'canberra', 'chebyshev', 'cityblock', 
@@ -70,7 +75,7 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                             criterion='maxclust')
             
             self._current_model = {'results' : yhat,
-                                   'params'  : (section, model, metric, n_clusters),
+                                   'params'  : (section, model, metric, n_clusters, method),
                                    'object'  : model}
 
             if print_met == True:
@@ -80,8 +85,15 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                            'davies_bouldin']
                 metrics = {key : self._metric_options(key) for key in metrics}
                 for met, (function, kargs) in metrics.items():
-                    print(f'{met} = {function(yhat, **kargs)}')
-                self._cophenetic_corr(model, X)
+                    print(f'\n{met} = {function(yhat, **kargs)} \n')
+                self._cophenetic_corr(model, section=section)
+
+                print('\nNumber of samples in each cluster:')
+                print('\nCluster number \t Number of samples')
+                print(pd.Series(yhat).value_counts())
+
+            if save_clusters:
+                pd.Series(yhat, name='predicted clusters').to_csv('clusters_assignment.txt', sep='\t')
 
 
     def execute_models(self,
@@ -100,7 +112,11 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                     self._models_executed[col_key] = {}
                 
                 for k in range(cluster_range[0], cluster_range[1] + 1):
-                    self.run(method=m, n_clusters=k, section=section, metric=d)
+                    self.run(method=m,
+                             n_clusters=k,
+                             section=section,
+                             metric=d,
+                             save_clusters=False)
                     self._models_executed[col_key][k] = self._current_model
 
 
@@ -120,7 +136,7 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                 for k, v in clusters.items():
                     if len(set(v['results'])) <= 1:
                         l[k] = np.nan
-                        print(f"{s}, {m}, {d} with only 1 cluster. {met} set to NaN.")
+                        print(f"\n{s}, {m}, {d} with only 1 cluster. {met} set to NaN.")
                     else:
                         l[k] = function(v['results'], **kargs)
                 scores[(s, m, d, met)] = l
@@ -141,7 +157,7 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
 
 
     def evaluate_models(self,
-                        criterion:str='cophenetic',
+                        criterion:str='silhouette_euclidean',
                         metrics:list[str]=['cophenetic',
                                            'silhouette_euclidean', 
                                            'calinski_harabasz',
@@ -151,6 +167,9 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
         self._calculate_metrics(metrics)
 
         print(f'Models will be evaluated by {criterion} \n')
+        if criterion == 'cophenetic':
+            print('\nWarning: cophenetic is independent of the number of clusters')
+            print('\nall rows of the output column will be the same.')
         subset = self.metrics.xs(criterion, level=3, axis=1)
         subset = subset.xs(section, level=0, axis=1)
 
@@ -159,8 +178,7 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
         for m, func in {'Max': (lambda x: x.idxmax()),
                         'Min': (lambda x: x.idxmin())}.items():
             a = func(stack)
-            print(f"{m} value:{a[0][0]} clusters, metric {a[0][1]}, \
-                  {a.index[0]} linkage")
+            print(f"\n{m} value:{a[0][0]} clusters, metric {a[0][1]}, {a.index[0]} linkage")
             if (m == 'Max' and criterion != 'davies_bouldin') \
                 or (m == 'Min' and criterion == 'davies_bouldin'):
                 self._best_params = {'metric':a[0][1],
@@ -168,7 +186,10 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                                      'n_clusters':a[0][0],
                                      'section':section}
                 print(self._best_params)
-                self.run(**self._best_params)
+                print('\n\nRunning final model:')
+                self.run(**self._best_params,
+                         print_met=True,
+                         save_clusters=True)
 
 
     def __check_and_run(self,
@@ -188,7 +209,8 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
             self.run(method=method,
                      metric=metric,
                      n_clusters=nclust,
-                     section=section)
+                     section=section,
+                     save_clusters=False)
             return method, metric, nclust
     
         elif cparams is not None:
@@ -196,13 +218,22 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
             metric = metric if metric is not None else cparams['metric']
             nclust = nclust if nclust is not None else cparams['n_clusters']
             section = section if section is not None else cparams['section']
-    
-            print('Using cached configuration with possible user overrides.')
-            self.run(method=method,
-                     metric=metric,
-                     n_clusters=nclust,
-                     section=section)
-            return method, metric, nclust
+
+            if     method  == self._current_model['params'][4] \
+               and metric  == self._current_model['params'][2] \
+               and nclust  == self._current_model['params'][3] \
+               and section == self._current_model['params'][0]:
+                   print('Model already chached.')
+                   return method, metric, nclust
+
+            else:
+                print('Using cached configuration with possible user overrides.')
+                self.run(method=method,
+                         metric=metric,
+                         n_clusters=nclust,
+                         section=section,
+                         save_clusters=False)
+                return method, metric, nclust
 
         else:
             print('No cached model and incomplete input. Running full evaluation.')
@@ -214,13 +245,14 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
 
 
     @requires_dataset
-    def heatmap(self,
-                method:str=None,
-                metric:str=None,
-                n_clusters:int=None,
-                cmap:str='plasma_r',
-                section:str=None,
-                save:bool=True):
+    def _heatmap(self,
+                 method:str=None,
+                 metric:str=None,
+                 n_clusters:int=None,
+                 cmap:str='cividis',
+                 section:str=None,
+                 save:bool=True,
+                 savename:str=''):
 
         # Get data
         X = self.data_processor.dataset.get_X(section)
@@ -231,105 +263,144 @@ class AutoBioLearnHierarchical(AutoBioLearnUnsupervisedLearning):
                                                           section=section)
 
 
-        yhat = yhat = self._current_model['results']
+        yhat = self._current_model['results']
         clusters = set(yhat)
+
         palette = sns.color_palette("husl", len(clusters)).as_hex()
         colours = dict(zip(clusters, palette))
         group = pd.Series(yhat, index=X.index).replace(colours)
 
         # Plot heatmap
         fig = sns.clustermap(X,
-                             row_cluster=False,
+                             row_cluster=True,
+                             col_cluster=True,
                              method=method,
                              metric=metric,
                              z_score=None,
                              standard_scale=None,
                              figsize=(8, 12),
                              row_colors=group,
-                             cmap= cmap)
-        
-        plt.title(f'Dendrogram - {method}', fontsize=16)
-        plt.ylabel(f'{metric}', fontsize=16)
-        
+                             cmap= cmap,
+                             cbar_pos=(1, 0.3, .03, .4))
+
+        fig.ax_heatmap.set_ylabel('')
+
+        fig.ax_col_dendrogram.set_title(f'Dendrogram - {method}',
+                                        fontsize=24)
+
+        fig.ax_cbar.set_ylabel('Varible values', fontsize=16)
+
         # Add legend to class
         handles = [mpatches.Patch(color=color, label=label) for label, color in colours.items()]
-        plt.legend(handles=handles, bbox_to_anchor=(1.2, 1), loc='lower left')
+        fig.ax_heatmap.legend(handles=handles, 
+                              bbox_to_anchor=(1.2, 1),
+                              loc='center left',
+                              title='Clusters',
+                              fontsize=16)
+        
+        if len(X) > 50:
+            fig.ax_heatmap.set_yticks([])
         
         # Save it
         if save == True:
-            fig.savefig(f'heatmap_{metric}_{method}.png')
+            fig.savefig(f'{savename}heatmap_{metric}_{method}.png')
 
         plt.show()
         plt.close()
 
 
     @requires_dataset
-    def dendogram(self,
-                  method:str=None,
-                  metric:str=None,
-                  n_clusters:int=2,
-                  section:str=None,
-                  save:bool=True):
+    def _dendrogram(self,
+                   method:str=None,
+                   metric:str=None,
+                   n_clusters:int=None,
+                   section:str=None,
+                   save:bool=True,
+                   savename:str=''):
 
         method, metric, n_clusters = self.__check_and_run(method=method,
                                                           metric=metric,
                                                           nclust=n_clusters,
                                                           section=section)
 
-        X = self.data_processor.dataset.get_X(section)
+        z = self._current_model['object']
         labels = self._current_model['results']
-        clusters = set(labels)
-        palette = sns.color_palette("husl", len(clusters)).as_hex()
-        clust2color = dict(zip(clusters, palette))
-        index2color = pd.Series(labels, index=X.index).replace(clust2color)
+        clusters = len(set(labels))
+        
+        if clusters > 1:
+            nobs = z.shape[0]
+            col_thresh = z[nobs - clusters, 2] + 1e-10
+        else:
+            col_thresh = 0
 
         fig, ax = plt.subplots(figsize=(8, 12))
+        
+        yhat = set(self._current_model['results'])
+
+        palette = sns.color_palette("husl", len(yhat)).as_hex()
+        sch.set_link_color_palette(palette)
+        palette = dict(zip(yhat, palette))
+        
         sch.dendrogram(self._current_model['object'],
                        labels = self.data_processor.dataset.get_X(section).index,
                        ax=ax,
-                       orientation='left')
-        
-        # Color the labels
-        for label in ax.get_yticklabels():
-            leaf_id = label.get_text()
-            color = index2color.get(leaf_id, "#808080")
-            label.set_color(color)
-        
-        plt.title(f'Dendrogram - {method}', fontsize=16)
-        plt.xlabel(f'{metric}', fontsize=16)
-        
+                       orientation='left',
+                       color_threshold=col_thresh, 
+                       above_threshold_color='grey')
+
+        plt.title(f'Dendrogram - {method}', fontsize=24)
+        plt.xlabel(f'Selected metric:{metric.capitalize()}', fontsize=16)
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        if len(self.data_processor.dataset.get_X(section)) > 100:
+            ax.set_yticks([])
+
+        # Add legend to class
+        handles = [mpatches.Patch(color=color, label=label) for label, color in palette.items()]
+        ax.legend(handles=handles,
+                  bbox_to_anchor=(1.2, 1),
+                  loc='upper left',
+                  title='Clusters',
+                  fontsize=16)
+
         # Save it
         if save == True:
-            fig.savefig(f'dendogram_{metric}_{method}_{section}.png')
+            fig.savefig(f'{savename}dendrogram_{metric}_{method}.png',
+                        bbox_inches='tight')
 
         plt.show()
         plt.close()
 
 
     def plot(self,
-             dendogram=True,
+             dendrogram=True,
              heatmap=True,
              method:str=None,
              metric:str=None,
              section:str=None,
-             save:bool=True):
+             save:bool=True,
+             savename:str=''):
         
         if heatmap == True: 
-            self.heatmap(method=method,
-                         metric=metric,
-                         section=section,
-                         save=save)
+            self._heatmap(method=method,
+                          metric=metric,
+                          section=section,
+                          save=save,
+                          savename='')
 
-        if dendogram == True:
-            self.dendogram(method=method,
-                           metric=metric,
-                           section=section,
-                           save=save)
+        if dendrogram == True:
+            self._dendrogram(method=method,
+                            metric=metric,
+                            section=section,
+                            save=save,
+                            savename='')
 
 
 ###############################################################################
 
-class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
+class NonHierarchical(Unsupervised):
     
     def __init__(self) -> None:
         super().__init__()
@@ -345,7 +416,8 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
                                'manhattan',
                                'calinski_harabasz',
                                'davies_bouldin'],
-            print_met=False):
+            print_met=False,
+            save_clusters=True):
 
             try:
                 X = self.data_processor.dataset.get_X(section)
@@ -353,7 +425,11 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
                 X = self.data_processor.dataset.get_X()
 
             model = ModelHelper.get_model(model, "clustering")
-            model = model(n_clusters=nclusters)
+            try: 
+                model = model(n_clusters=nclusters)
+            except TypeError:
+                model = model(n_components=nclusters)
+
             try:
                 model.fit(X)
                 yhat = model.predict(X)
@@ -363,14 +439,25 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
             self._current_model = {'results' : yhat,
                                    'params'  : (section, model, nclusters)}
             
+            print(f"Executed {model} with {nclusters}")
+
             if print_met == True:
                 metrics = {key : self._metric_options(key) for key in metrics}
                 for met, (function, kargs) in metrics.items():
-                    print(f'{met} = {function(yhat, **kargs)}')
-                    
+                    print(f'\n{met} = {function(yhat, **kargs)}')
+
+                print('\nNumber of samples in each cluster:')
+                print('\nCluster number \t Number of samples')
+                print(pd.Series(yhat).value_counts())
+
+            if save_clusters:
+                pd.Series(yhat, name='predicted clusters').to_csv('clusters_assignment.txt', sep='\t')
 
     def execute_models(self,
-                       models:list[str]=['kmeans', 'spectral', 'birch'],
+                       models:list[str]=['kmeans', 
+                                         'spectral',
+                                         'kmedoids',
+                                         'gaussian_mixture'],
                        cluster_range:tuple=(2,5),
                        section: str = None):
         
@@ -380,7 +467,7 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
         for name in unique_models:
             models_execution[name] = {}
             for i in range(cluster_range[0], cluster_range[1]+1):
-                self.run(name, i, section)
+                self.run(name, i, section, save_clusters=False)
                 models_execution[name][i] = self._current_model['results']
 
         section_name = section if section != None else 'all variables'
@@ -390,7 +477,6 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
         else:
             for key, vals in models_execution.items(): 
                 self._models_executed[(section_name, key)] = vals
-    
 
     def _calculate_metrics(self,
                            metrics:list[str]=['silhouette_euclidean', 
@@ -414,7 +500,6 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
                                                   'Metric'])
         self.metrics = metrics
 
-
     def evaluate_models(self,
                         criterion:str='silhouette_euclidean',
                         metrics:list[str]=['silhouette_euclidean',
@@ -430,32 +515,38 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
         subset = subset.xs(section, level=0, axis=1)
         
         if subset.isnull().all().all():
-            print('No available results for this criterion and section')
+            print('\n\nNo available results for this criterion and section')
             return
 
         if figure == True:
             fig, ax = plt.subplots(figsize=(10, 10))
             sns.heatmap(subset, ax=ax)
             plt.title(f'{criterion}', fontsize=16)
-            fig.savefig(f'{criterion}_clusters_methods.png')
-        
-        print(subset)        
+            fig.savefig(f'{criterion}_clusters_methods.png',
+                        bbox_inches='tight')
+
+        print('\n\n')
+        print(subset)
         stack = subset.stack()
         for m, func in {'Max': (lambda x: x.idxmax()),
                         'Min': (lambda x: x.idxmin())}.items():
             a = func(stack)
-            print(f"{m} value:{a[0]} clusters, {a[1]}")
+            print(f"\n{m} value:{a[0]} clusters, {a[1]}")
             if (m == 'Max' and criterion != 'davies_bouldin') \
                 or (m == 'Min' and criterion == 'davies_bouldin'):
                 self._best_params = {'model':a[1],
                                      'nclusters':a[0],
                                      'section':section}
-                self.run(**self._best_params)
-
+                print('\n\nRunning final model:')
+                self.run(**self._best_params,
+                         print_met=True,
+                         save_clusters=True)
 
     def plot(self,
              x_axis,
-             y_axis):
+             y_axis,
+             save:bool=True,
+             savename:str=''):
 
         yhat, title = self._current_model.values()
         section = title[0]
@@ -468,13 +559,8 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
         if x_axis not in X.columns or y_axis not in X.columns:
             raise ValueError(f"{x_axis} and/or {y_axis} not in dataset.")
 
-        try:
-            X = self.data_processor.dataset.get_X(section)
-        except KeyError:
-            X = self.data_processor.dataset.get_X()
-
         clusters = set(yhat)
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(8, 8))
         
         # create scatter plot for samples from each cluster
         for cluster in clusters:
@@ -485,11 +571,21 @@ class AutoBioLearnPartitional(AutoBioLearnUnsupervisedLearning):
                 label=f'Cluster {cluster}'
             )
         
-        ax.set_xlabel(x_axis)
-        ax.set_ylabel(y_axis)
+        ax.set_xlabel(x_axis, fontsize='large')
+        ax.set_ylabel(y_axis,  fontsize='large')
 
-        plt.title(f'Section: {title[0]}, {title[1]}')
-        fig.savefig(f'sec_{title[0]}-{title[1]}-{title[2]}-{x_axis}-{y_axis}.png')
+        ax.tick_params(axis='both', labelsize=14)
+
+        ax.legend()
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        plt.title(f'{title[0]}, {title[1]}',  fontsize='xx-large')
+
+        if save == True:
+            fig.savefig(f'{savename}{title[1]}-{title[2]}-{x_axis}-{y_axis}.png',
+                    bbox_inches = 'tight')
 
         plt.close(fig)
 
