@@ -245,13 +245,14 @@ class Hierarchical(Unsupervised):
 
 
     @requires_dataset
-    def heatmap(self,
-                method:str=None,
-                metric:str=None,
-                n_clusters:int=None,
-                cmap:str='cividis',
-                section:str=None,
-                save:bool=True):
+    def _heatmap(self,
+                 method:str=None,
+                 metric:str=None,
+                 n_clusters:int=None,
+                 cmap:str='cividis',
+                 section:str=None,
+                 save:bool=True,
+                 savename:str=''):
 
         # Get data
         X = self.data_processor.dataset.get_X(section)
@@ -287,7 +288,7 @@ class Hierarchical(Unsupervised):
         fig.ax_col_dendrogram.set_title(f'Dendrogram - {method}',
                                         fontsize=24)
 
-        fig.ax_cbar.set_ylabel(f'{metric.capitalize()}', fontsize=16)
+        fig.ax_cbar.set_ylabel('Varible values', fontsize=16)
 
         # Add legend to class
         handles = [mpatches.Patch(color=color, label=label) for label, color in colours.items()]
@@ -302,19 +303,20 @@ class Hierarchical(Unsupervised):
         
         # Save it
         if save == True:
-            fig.savefig(f'heatmap_{metric}_{method}.png')
+            fig.savefig(f'{savename}heatmap_{metric}_{method}.png')
 
         plt.show()
         plt.close()
 
 
     @requires_dataset
-    def dendogram(self,
-                  method:str=None,
-                  metric:str=None,
-                  n_clusters:int=None,
-                  section:str=None,
-                  save:bool=True):
+    def _dendrogram(self,
+                   method:str=None,
+                   metric:str=None,
+                   n_clusters:int=None,
+                   section:str=None,
+                   save:bool=True,
+                   savename:str=''):
 
         method, metric, n_clusters = self.__check_and_run(method=method,
                                                           metric=metric,
@@ -365,31 +367,35 @@ class Hierarchical(Unsupervised):
 
         # Save it
         if save == True:
-            fig.savefig(f'dendogram_{metric}_{method}_{section}.png')
+            fig.savefig(f'{savename}dendrogram_{metric}_{method}.png',
+                        bbox_inches='tight')
 
         plt.show()
         plt.close()
 
 
     def plot(self,
-             dendogram=True,
+             dendrogram=True,
              heatmap=True,
              method:str=None,
              metric:str=None,
              section:str=None,
-             save:bool=True):
+             save:bool=True,
+             savename:str=''):
         
         if heatmap == True: 
-            self.heatmap(method=method,
-                         metric=metric,
-                         section=section,
-                         save=save)
+            self._heatmap(method=method,
+                          metric=metric,
+                          section=section,
+                          save=save,
+                          savename='')
 
-        if dendogram == True:
-            self.dendogram(method=method,
-                           metric=metric,
-                           section=section,
-                           save=save)
+        if dendrogram == True:
+            self._dendrogram(method=method,
+                            metric=metric,
+                            section=section,
+                            save=save,
+                            savename='')
 
 
 ###############################################################################
@@ -471,7 +477,6 @@ class NonHierarchical(Unsupervised):
         else:
             for key, vals in models_execution.items(): 
                 self._models_executed[(section_name, key)] = vals
-    
 
     def _calculate_metrics(self,
                            metrics:list[str]=['silhouette_euclidean', 
@@ -495,7 +500,6 @@ class NonHierarchical(Unsupervised):
                                                   'Metric'])
         self.metrics = metrics
 
-
     def evaluate_models(self,
                         criterion:str='silhouette_euclidean',
                         metrics:list[str]=['silhouette_euclidean',
@@ -518,7 +522,8 @@ class NonHierarchical(Unsupervised):
             fig, ax = plt.subplots(figsize=(10, 10))
             sns.heatmap(subset, ax=ax)
             plt.title(f'{criterion}', fontsize=16)
-            fig.savefig(f'{criterion}_clusters_methods.png')
+            fig.savefig(f'{criterion}_clusters_methods.png',
+                        bbox_inches='tight')
 
         print('\n\n')
         print(subset)
@@ -537,10 +542,11 @@ class NonHierarchical(Unsupervised):
                          print_met=True,
                          save_clusters=True)
 
-
     def plot(self,
              x_axis,
-             y_axis):
+             y_axis,
+             save:bool=True,
+             savename:str=''):
 
         yhat, title = self._current_model.values()
         section = title[0]
@@ -576,7 +582,9 @@ class NonHierarchical(Unsupervised):
         ax.spines['right'].set_visible(False)
 
         plt.title(f'{title[0]}, {title[1]}',  fontsize='xx-large')
-        fig.savefig(f'{title[1]}-{title[2]}-{x_axis}-{y_axis}.png',
+
+        if save == True:
+            fig.savefig(f'{savename}{title[1]}-{title[2]}-{x_axis}-{y_axis}.png',
                     bbox_inches = 'tight')
 
         plt.close(fig)

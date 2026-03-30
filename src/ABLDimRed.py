@@ -86,7 +86,7 @@ class PCA(Unsupervised):
 
 
     @requires_dataset
-    def cumulative_var(self, thresh, save=True):
+    def _cumulative_var_plot(self, thresh, save=True):
 
         var_ratio = np.cumsum(self.pca.explained_variance_ratio_)
 
@@ -115,7 +115,9 @@ class PCA(Unsupervised):
 
         plt.show()
         if save == True:
-            fig.savefig('cumulative_variance.png', format='png')
+            fig.savefig('cumulative_variance.png',
+                        format='png',
+                        bbox_inches='tight')
         
         i = 0
         val = 0
@@ -129,7 +131,7 @@ class PCA(Unsupervised):
             self._cumulative_var = {thresh : i}
 
     @requires_dataset
-    def scree(self, save=True):
+    def _scree(self, save=True):
 
         var = self.pca.explained_variance_
         fig, ax = plt.subplots()
@@ -150,7 +152,9 @@ class PCA(Unsupervised):
         
         plt.show()
         if save == True:
-            fig.savefig('scree.png', format='png')
+            fig.savefig('scree.png',
+                        format='png',
+                        bbox_inches='tight')
 
     
     @requires_dataset
@@ -163,8 +167,8 @@ class PCA(Unsupervised):
         self._kaiser(section)
 
         self.run(n_components=None, section=section)
-        self.cumulative_var(cumvar)
-        self.scree()
+        self._cumulative_var_plot(cumvar)
+        self._scree()
 
 
     def evaluate_models(self,
@@ -219,15 +223,23 @@ class PCA(Unsupervised):
     @requires_dataset
     def plot(self,
              vectors=True,
+             Xpc=1,
+             Ypc=2,
              cmap:str='muted',
-             save:bool=True):
+             save:bool=True,
+             savename=''):
 
         # PCA plot
-        PC1_var= round(self.pca.explained_variance_ratio_[0] * 100, 2)
-        PC2_var= round(self.pca.explained_variance_ratio_[1] * 100, 2)
+        try:
+            PC1_var= round(self.pca.explained_variance_ratio_[Xpc-1] * 100, 2)
+            PC2_var= round(self.pca.explained_variance_ratio_[Ypc-1] * 100, 2)
+        except IndexError:
+            maxPC = max([i[-1] for i in self.coordinates.columns if i.startswith('PC')])
+            print(f'Max number of PC is {maxPC}')
+            return
 
-        fig, ax = plt.subplots(figsize=(10, 12),
-                               dpi = 600)
+        fig, ax = plt.subplots(figsize=(5, 6),
+                           dpi = 600)
 
         if self.data_processor.dataset.get_Y() is not None:
             hue='class'
@@ -237,17 +249,17 @@ class PCA(Unsupervised):
             legend=False
 
         sns.scatterplot(data=self.coordinates,
-                        x='PC1',
-                        y='PC2',
+                        x=f'PC{Xpc}',
+                        y=f'PC{Ypc}',
                         hue=hue,
                         alpha=0.5,
                         palette=cmap,
                         ax=ax,
                         legend=legend)
 
-        ax.set_xlabel(f'PC1 (explained variance: {PC1_var}%)',
+        ax.set_xlabel(f'PC{Xpc} (explained variance: {PC1_var}%)',
                       size='large')
-        ax.set_ylabel(f'PC2 (explained variance: {PC2_var}%)',
+        ax.set_ylabel(f'PC{Ypc} (explained variance: {PC2_var}%)',
                       size='large')
 
         ax.set_title('Loading plot',
@@ -267,15 +279,17 @@ class PCA(Unsupervised):
             loadings = self.pca.components_.T * np.sqrt(self.pca.explained_variance_)
             
             # get the scale factor for the vectors
-            ax_lims = min(ax.get_xlim() + ax.get_ylim())
+            ax_lims = min(ax.get_xlim() + ax.get_ylim(), key=abs)
             ld_lims = loadings.max()
-            scale   = ax_lims / (ld_lims + 0.3)
+            scale   = abs(ax_lims / (ld_lims * 1.05))
+            print(scale)
 
             legend_vectors = ''
             for i, feature in enumerate(features):
                 ax.annotate(i+1,
                             (0, 0),
-                            (loadings[i, 0]*scale, loadings[i, 1]*scale),
+                            (loadings[i, Xpc-1]*scale,
+                             loadings[i, Ypc-1]*scale),
                             annotation_clip=False,
                             ha='center',
                             va='bottom',
@@ -290,7 +304,7 @@ class PCA(Unsupervised):
         # 2. Adicionar a caixa de texto à direita
         # transform=ax.transAxes faz com que (1.05, 0.5) seja relativo à área do gráfico
         ax.text(1.05,
-                0.1,
+                0,
                 legend_vectors, 
                 transform=ax.transAxes,
                 bbox=dict(boxstyle='round,pad=0.5',
@@ -301,4 +315,6 @@ class PCA(Unsupervised):
         # Save the figure
         plt.show()
         if save == True:
-            fig.savefig('PCA.png', format='png')
+            fig.savefig(f'{savename}PCA_PC{Xpc}_PC{Ypc}.png',
+                        format='png',
+                        bbox_inches='tight')
